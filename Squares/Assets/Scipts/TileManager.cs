@@ -5,6 +5,12 @@ using UnityEngine;
 
 public class TileManager : MonoBehaviour {
 
+    [SerializeField]
+    private PathEngine pathEngine;
+
+    [SerializeField]
+    MaskGenerator maskGen;
+
     public Tilemap baseMap;
 
     public Tilemap unitsMap;
@@ -13,12 +19,19 @@ public class TileManager : MonoBehaviour {
 
     public Tilemap overlayMap;
 
+    public Tilemap arrowMap;
+
     [SerializeField]
     private TileBase debugTile;
 
     public TileBase greenMask;
+    public TileBase redMask;
+
+    public static bool unitIsMoving;
 
     public int sizeX, sizeY;
+
+    Vector3Int lastTilePos = new Vector3Int(10000, 10000, 10000);
 
     void Start () {
        //Get bounds from base map in cell size
@@ -28,8 +41,40 @@ public class TileManager : MonoBehaviour {
 
     // Update is called once per frame
     void Update () {
-		
-	}
+        if (unitIsMoving)
+        {
+            return;
+        }
+        //Get tile mouse is focusing on
+        Vector3 mousePos = Input.mousePosition;
+        Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
+        Vector3Int tilePos = masksMap.WorldToCell(mousePosWorld);
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (masksMap.GetTile(tilePos) == greenMask)
+            {
+                print("Walk");
+                RoundManager.currentUnit.WalkPath(pathEngine.GetPathToLocation(RoundManager.currentUnit, tilePos));
+            }
+            else if (masksMap.GetTile(tilePos) == redMask)
+            {
+                print("Attack");
+                RoundManager.currentUnit.Attack(GetUnitAtPosition(tilePos));
+            }
+        }
+        
+        if (tilePos != lastTilePos)
+        {
+            lastTilePos = tilePos;
+            if (pathEngine.GeneratePathToLocation(RoundManager.currentUnit, tilePos))
+            {
+                Path path = pathEngine.GetPathToLocation(RoundManager.currentUnit, tilePos);
+                pathEngine.DisplayPath(path, RoundManager.currentUnit);
+            }
+        }
+
+    }
 
     public bool CheckForTile(int pX, int pY, TileBase pTile)
     {

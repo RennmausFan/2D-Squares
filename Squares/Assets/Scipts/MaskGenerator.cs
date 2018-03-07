@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Tilemaps;
 using UnityEngine;
 
 public class MaskGenerator: MonoBehaviour{
@@ -10,113 +11,142 @@ public class MaskGenerator: MonoBehaviour{
     [SerializeField]
     private PathEngine pathEngine;
 
-    Unit unit;
-
     private int unitTurns;
 
-    int[,] maskGreen;
-
+    List<Vector3Int> maskGreen = new List<Vector3Int>();
+    List<Vector3Int> maskRed = new List<Vector3Int>();
+    List<Vector3Int> toRemove = new List<Vector3Int>();
+    
+    //Generates a green and red mask for pUnit and applies them to the mask layer
     public void GenerateMask(Unit pUnit)
     {
-        unit = pUnit;
+        maskGreen.Clear();
+        maskRed.Clear();
+        int turns = pUnit.turns;
+        Vector3Int center = pUnit.GetPos();
 
-        //Setup array containing only 0
-        unitTurns = unit.turns;
-        int range = unitTurns * 2 + 1;
-        print(range);
-        maskGreen = new int[range, range];
-        for (int x=0; x<range; x++)
+        #region MaskGreen - Setup
+        //Setup list containing positions relative to center
+        for (int x = 0; x <= turns; x++)
         {
-            for (int y = 0; y < range; y++)
+            for (int y = 0; y <= turns - x; y++)
             {
-                maskGreen[x,y] = 1;
-            }
-        }
+                Vector3Int v1 = center + new Vector3Int(x, y, 0);
+                Vector3Int v2 = center + new Vector3Int(x, -y, 0);
+                Vector3Int v3 = center + new Vector3Int(-y, x, 0);
+                Vector3Int v4 = center + new Vector3Int(-y, -x, 0);
 
-        //Get pivot point and set it to 0
-        maskGreen[unit.turns, unit.turns] = 0;
-
-        //Set points to zero where no tile is
-        for (int x = 0; x < range; x++)
-        {
-            for (int y = 0; y < range; y++)
-            {
-                if (tileManager.CheckForTile(CalTile(x,y),null))
+                if (!maskGreen.Contains(v1))
                 {
-                    maskGreen[x, y] = 0;
+                    maskGreen.Add(v1);
+                }
+                if (!maskGreen.Contains(v2))
+                {
+                    maskGreen.Add(v2);
+                }
+                if (!maskGreen.Contains(v3))
+                {
+                    maskGreen.Add(v3);
+                }
+                if (!maskGreen.Contains(v4))
+                {
+                    maskGreen.Add(v4);
                 }
             }
         }
+        maskGreen.Remove(center);
+        #endregion
 
-        //Check if points are no 'null'
-        for (int x = 0; x < range; x++)
+        #region Filter MaskGreen
+        //Remove all positions that pUnit isnt allowed to step on
+        toRemove.Clear();
+        for (int i = 0; i < maskGreen.Count; i++)
         {
-            for (int y = 0; y < range; y++)
+            if (!pUnit.TileValidForUnit(maskGreen[i]))
             {
-                if (!unit.TileValidForUnit(CalTile(x, y)))
-                {
-                    maskGreen[x, y] = 0;
-                }
+                toRemove.Add(maskGreen[i]);
             }
         }
+        foreach (Vector3Int v in toRemove)
+        {
+            maskGreen.Remove(v);
+        }
+        #endregion
 
+        #region CheckPaths for MaskGreen
         //Check paths --> PathEngine
-        for (int x = 0; x < range; x++)
+        toRemove.Clear();
+        for (int i = 0; i<maskGreen.Count; i++)
         {
-            for (int y = 0; y < range; y++)
+            if (!pathEngine.GeneratePathToLocation(pUnit, maskGreen[i]))
             {
-                if (!pathEngine.GeneratePathToLocation(pUnit,CalTile(x,y)))
+                toRemove.Add(maskGreen[i]);
+            }
+        }
+        foreach (Vector3Int v in toRemove)
+        {
+            maskGreen.Remove(v);
+        }
+        #endregion
+
+        #region Calculate RedMask
+        //Get attack positions
+        List<Vector3Int> attackPositions;
+        //Attack positions in maskGreen
+        foreach (Vector3Int v in maskGreen)
+        {
+            attackPositions = GetAttackPositions(pUnit, v);
+            if (attackPositions != null)
+            {
+                foreach (Vector3Int pos in attackPositions)
                 {
-                    maskGreen[x, y] = 0;
+                    maskRed.Add(pos);
                 }
             }
         }
-
-        printMask(maskGreen);
-
-        applyMask(maskGreen);
-    }
-
-    //Converts tile position to its actual position in cell-space
-    public Vector3Int CalTile(int pX, int pY)
-    {
-        Vector3Int unitPos = unit.GetPos();
-        Vector3Int center = new Vector3Int(unitTurns, unitTurns, 0);
-        Vector3Int newPos = new Vector3Int(pX, pY, 0);
-        Vector3Int dir = newPos - center;
-
-        Vector3Int pos = unitPos + dir;
-        return pos;
-    }
-
-    //Prints a mask in console
-    public void printMask(int[,] pMask)
-    {
-        string temp = "";
-        for (int x = 0; x < pMask.GetLength(0); x++)
+        //Attack positions at unit position
+        attackPositions = GetAttackPositions(pUnit, pUnit.GetPos());
+        if (attackPositions != null)
         {
-            for (int y = 0; y < pMask.GetLength(1); y++)
+            foreach (Vector3Int pos in attackPositions)
             {
-                temp += pMask[x, y] + ", ";
+                maskRed.Add(pos);
             }
-            temp += "\n";
         }
-        print(temp);
+        #endregion
+
+        //Apply masks
+        tileManager.masksMap.ClearAllTiles();
+        ApplyMask(maskGreen, tileManager.greenMask);
+        ApplyMask(maskRed, tileManager.redMask);
+    }
+
+    //Returns the possible positions as a list
+    public List<Vector3Int> GetAttackPositions(Unit pUnit, Vector3Int pPos)
+    {
+        List<Vector3Int> maskPositions = new List<Vector3Int>();
+        Vector3Int[] attackPositions = pUnit.attackPositions;
+        foreach (Vector3Int v in attackPositions)
+        {
+            Vector3Int pos = pPos + v;
+            if (tileManager.CheckForUnit(pos))
+            {
+                Unit unit = tileManager.GetUnitAtPosition(pos);
+                if (pUnit.team != unit.team)
+                {
+                    maskPositions.Add(pos);
+                }
+            }
+        }
+        return maskPositions;
     }
 
     //Applys a mask
-    public void applyMask(int[,] pMask)
+    public void ApplyMask(List<Vector3Int> pMask, TileBase pMasktile)
     {
-        tileManager.masksMap.ClearAllTiles();
-        for (int x = 0; x < pMask.GetLength(0); x++)
+        foreach (Vector3Int v in pMask)
         {
-            for (int y = 0; y < pMask.GetLength(1); y++)
-            {
-                if (pMask[x,y] == 1)
-                {
-                    tileManager.masksMap.SetTile(CalTile(x,y), tileManager.greenMask);
-                }
-             }
-        }
+            tileManager.masksMap.SetTile(v, pMasktile);
+        }  
     }
 }

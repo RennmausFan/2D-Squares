@@ -3,6 +3,18 @@ using System.Collections.Generic;
 using UnityEngine.Tilemaps;
 using UnityEngine;
 
+public enum CharClasses
+{
+    Archer,
+    Samurai,
+    Shogun,
+    Tank,
+    Horse,
+    Horseman,
+    Hunter,
+    Swordsman
+};
+
 public class Unit : MonoBehaviour {
 
     [SerializeField]
@@ -14,17 +26,33 @@ public class Unit : MonoBehaviour {
     [SerializeField]
     private GameObject selection;
 
+    [Header("Class Attributes")]
     public TileBase[] blockingTiles;
-    
+
+    //Attack positions as Vector3Int relative to this unit
+    public Vector3Int[] attackPositions;
+
+    public LinkedList<Unit> team = new LinkedList<Unit>();
+
+    public bool canAct;
+
+    public float animWalkSpeed;
+
+    [Header("Stats")]
+    public CharClasses unitClass;
+
     public int health, maxHealth;
 
     public int turns, maxTurns;
 
-    public bool canAct;
+    public int attacks, maxAttacks;
 
-    public int atk, def;
+    public int atk, atkBase;
 
-    public LinkedList<Unit> team = new LinkedList<Unit>();
+    public int def, defBase;
+
+    [Range(0, 10)]
+    public int moral;
 
     // Use this for initialization
     void Start () {
@@ -124,6 +152,34 @@ public class Unit : MonoBehaviour {
         Vector3 dest = tileManager.baseMap.GetCellCenterWorld(moveTo);
         transform.position = dest;
         turns -= distance;
+        maskGen.GenerateMask(this);
+        tileManager.arrowMap.ClearAllTiles();
+    }
+
+    public void WalkPath(Path pPath)
+    {
+        List<Vector3Int> moves = pPath.moves;
+        foreach (Vector3Int v in moves)
+        {
+            Vector3 desiredPos = transform.position + v;
+            StartCoroutine(MoveObject(transform.position, desiredPos, animWalkSpeed));
+        }
+        turns -= pPath.GetLength();
+        tileManager.arrowMap.ClearAllTiles();
+    }
+
+    IEnumerator MoveObject(Vector3 start, Vector3 target, float overTime)
+    {
+        TileManager.unitIsMoving = true;
+        float startTime = Time.time;
+        while (Time.time < startTime + overTime)
+        {
+            transform.position = Vector3.Lerp(start, target, (Time.time - startTime) / overTime);
+            yield return null;
+        }
+        transform.position = target;
+        TileManager.unitIsMoving = false;
+        maskGen.GenerateMask(RoundManager.currentUnit);
     }
 
     #region Util
@@ -165,6 +221,17 @@ public class Unit : MonoBehaviour {
         return pos;
     }
     #endregion
+
+    public void Attack(Unit pTarget)
+    {
+        int damage = atk - pTarget.def;
+        if (damage <= 0)
+        {
+            damage = 1;
+        }
+        pTarget.health -= damage;
+        turns = 0;
+    }
 
     //Activate selection
     public void Highlight()
