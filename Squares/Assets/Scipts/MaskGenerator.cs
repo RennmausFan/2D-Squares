@@ -8,15 +8,19 @@ public class MaskGenerator: MonoBehaviour{
     [SerializeField]
     private TileManager tileManager;
 
-    [SerializeField]
-    private PathEngine pathEngine;
+    public static MaskGenerator Instance;
 
     private int unitTurns;
 
     List<Vector3Int> maskGreen = new List<Vector3Int>();
     List<Vector3Int> maskRed = new List<Vector3Int>();
     List<Vector3Int> toRemove = new List<Vector3Int>();
-    
+
+    void Awake()
+    {
+        Instance = this;
+    }
+
     //Generates a green and red mask for pUnit and applies them to the mask layer
     public void GenerateMask(Unit pUnit)
     {
@@ -78,7 +82,7 @@ public class MaskGenerator: MonoBehaviour{
         toRemove.Clear();
         for (int i = 0; i<maskGreen.Count; i++)
         {
-            if (!pathEngine.GeneratePathToLocation(pUnit, maskGreen[i]))
+            if (!PathEngine.Instance.GeneratePathToLocation(pUnit, maskGreen[i]))
             {
                 toRemove.Add(maskGreen[i]);
             }
@@ -90,27 +94,30 @@ public class MaskGenerator: MonoBehaviour{
         #endregion
 
         #region Calculate RedMask
-        //Get attack positions
-        List<Vector3Int> attackPositions;
-        //Attack positions in maskGreen
-        foreach (Vector3Int v in maskGreen)
+        if (pUnit.attacks > 0)
         {
-            attackPositions = GetAttackPositions(pUnit, v);
+            //Get attack positions
+            List<Vector3Int> attackPositions;
+            //Attack positions in maskGreen
+            foreach (Vector3Int v in maskGreen)
+            {
+                attackPositions = GetAttackPositions(pUnit, v);
+                if (attackPositions != null)
+                {
+                    foreach (Vector3Int pos in attackPositions)
+                    {
+                        maskRed.Add(pos);
+                    }
+                }
+            }
+            //Attack positions at unit position
+            attackPositions = GetAttackPositions(pUnit, pUnit.GetPos());
             if (attackPositions != null)
             {
                 foreach (Vector3Int pos in attackPositions)
                 {
                     maskRed.Add(pos);
                 }
-            }
-        }
-        //Attack positions at unit position
-        attackPositions = GetAttackPositions(pUnit, pUnit.GetPos());
-        if (attackPositions != null)
-        {
-            foreach (Vector3Int pos in attackPositions)
-            {
-                maskRed.Add(pos);
             }
         }
         #endregion

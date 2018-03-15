@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class UnitManager : MonoBehaviour {
 
-    public static LinkedList<Unit> allUnits = new LinkedList<Unit>();
+    public static List<Unit> allUnits = new List<Unit>();
 
-    public static LinkedList<Unit> allies = new LinkedList<Unit>();
-    public static LinkedList<Unit> enemies = new LinkedList<Unit>();
+    public static List<Unit> allies = new List<Unit>();
+    public static List<Unit> enemies = new List<Unit>();
 
     // Use this for initialization
     void Start () {
@@ -16,17 +16,14 @@ public class UnitManager : MonoBehaviour {
         {
             if (unit.tag == "Ally")
             {
-                allies.AddLast(unit);
+                allies.Add(unit);
             }
             else if (unit.tag == "Enemy")
             {
-                enemies.AddLast(unit);
+                enemies.Add(unit);
             }
-            allUnits.AddLast(unit);
+            allUnits.Add(unit);
         }
-        print("AllUnits: " + allUnits.Count);
-        print("Allies: " + allies.Count);
-        print("Enemies: " + enemies.Count);
     }
 
    void Update()
@@ -39,5 +36,18 @@ public class UnitManager : MonoBehaviour {
         {
             print("You win!");
         }
+    }
+
+    //Returns if team can act or not
+    public static bool TeamCanAct(List<Unit> pTeam)
+    {
+       foreach (Unit unit in pTeam)
+       {
+            if (unit.canAct)
+            {
+                return true;
+            }
+       }
+       return false;
     }
 }

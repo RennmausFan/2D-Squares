@@ -5,11 +5,7 @@ using UnityEngine;
 
 public class TileManager : MonoBehaviour {
 
-    [SerializeField]
-    private PathEngine pathEngine;
-
-    [SerializeField]
-    MaskGenerator maskGen;
+    public static TileManager Instance;
 
     public Tilemap baseMap;
 
@@ -24,6 +20,12 @@ public class TileManager : MonoBehaviour {
     [SerializeField]
     private TileBase debugTile;
 
+    private GameObject lastStatsDisplayer;
+    private Unit lastUnit;
+
+    [SerializeField]
+    private GameObject statsDisplayer;
+
     public TileBase greenMask;
     public TileBase redMask;
 
@@ -33,6 +35,11 @@ public class TileManager : MonoBehaviour {
 
     Vector3Int lastTilePos = new Vector3Int(10000, 10000, 10000);
 
+    void Awake()
+    {
+        Instance = this;
+    }
+
     void Start () {
        //Get bounds from base map in cell size
        sizeX = baseMap.cellBounds.size.x;
@@ -41,6 +48,8 @@ public class TileManager : MonoBehaviour {
 
     // Update is called once per frame
     void Update () {
+
+        //Player cannot move if there is a unit moving (cuz of bugs)
         if (unitIsMoving)
         {
             return;
@@ -50,58 +59,81 @@ public class TileManager : MonoBehaviour {
         Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
         Vector3Int tilePos = masksMap.WorldToCell(mousePosWorld);
 
+        //Walk and Attack and select Units
         if (Input.GetMouseButtonDown(0))
         {
             if (masksMap.GetTile(tilePos) == greenMask)
             {
-                print("Walk");
-                RoundManager.currentUnit.WalkPath(pathEngine.GetPathToLocation(RoundManager.currentUnit, tilePos));
+                RoundManager.currentUnit.WalkPath(PathEngine.Instance.GetPathToLocation(RoundManager.currentUnit, tilePos));
             }
             else if (masksMap.GetTile(tilePos) == redMask)
             {
-                print("Attack");
-                RoundManager.currentUnit.Attack(GetUnitAtPosition(tilePos));
+                //Check if unit is in range;
+                Vector3Int[] attackPositions = RoundManager.currentUnit.attackPositions;
+                if (attackPositions == null)
+                {
+                    return;
+                }
+                foreach (Vector3Int v in attackPositions)
+                {
+                    if (RoundManager.currentUnit.GetPos() + v == tilePos)
+                    {
+                        RoundManager.currentUnit.Attack(GetUnitAtPosition(tilePos));
+                    }
+                }
+            }
+            else if (CheckForUnit(tilePos))
+            {
+                Unit unitAtPos = GetUnitAtPosition(tilePos);
+                if (unitAtPos.team == RoundManager.currentTeam)
+                {
+                    RoundManager.currentUnit = unitAtPos;
+                    MaskGenerator.Instance.GenerateMask(RoundManager.currentUnit);
+                }
             }
         }
         
         if (tilePos != lastTilePos)
         {
             lastTilePos = tilePos;
-            if (pathEngine.GeneratePathToLocation(RoundManager.currentUnit, tilePos))
+            //Reset last unit
+            if (lastUnit != null && !lastUnit.isDead)
             {
-                Path path = pathEngine.GetPathToLocation(RoundManager.currentUnit, tilePos);
-                pathEngine.DisplayPath(path, RoundManager.currentUnit);
+                lastUnit.healthBar.SetActive(true);
+            }
+            //Generate Path to location
+            if (PathEngine.Instance.GeneratePathToLocation(RoundManager.currentUnit, tilePos))
+            {
+                Path path = PathEngine.Instance.GetPathToLocation(RoundManager.currentUnit, tilePos);
+                PathEngine.Instance.DisplayPath(path, RoundManager.currentUnit);
+            }
+            //Destroy lastStatsDisplayer if tilePos changes
+            if (lastStatsDisplayer != null)
+            {
+                Destroy(lastStatsDisplayer);
+            }
+            //Spawn statsdisplayer if unit is on tile
+            if (CheckForUnit(tilePos))
+            {
+                Unit unit = GetUnitAtPosition(tilePos);
+                GameObject go = StatsDisplayer.NewStatsDisplayer(statsDisplayer, unit);
+                unit.healthBar.SetActive(false);
+                lastStatsDisplayer = go;
+                lastUnit = unit;
             }
         }
 
-    }
-
-    public bool CheckForTile(int pX, int pY, TileBase pTile)
-    {
-        Vector3Int pos = new Vector3Int(pX, pY, 0);
-        TileBase tileToCompare = baseMap.GetTile(pos);
-        if (pTile == tileToCompare)
+        //Destroy lastStatsDisplayer if unit is dead
+        if (lastUnit != null && lastStatsDisplayer != null)
         {
-            return true;
-        }
-        return false;
-    }
-
-    public bool CheckForTiles(int pX, int pY, TileBase[] pTiles)
-    {
-        Vector3Int pos = new Vector3Int(pX, pY, 0);
-        TileBase tileToCompare = baseMap.GetTile(pos);
-
-        foreach (TileBase tile in pTiles)
-        {
-            if (tile == tileToCompare)
+            if (lastUnit.isDead)
             {
-                return true;
+                Destroy(lastStatsDisplayer);
             }
         }
-        return false;
     }
 
+    //Get if at a position is a specific tile
     public bool CheckForTile(Vector3Int pPos, TileBase pTile)
     {
         TileBase tileToCompare = baseMap.GetTile(pPos);
@@ -112,6 +144,7 @@ public class TileManager : MonoBehaviour {
         return false;
     }
 
+    //Get if at a position is one of the specific tiles
     public bool CheckForTiles(Vector3Int pPos, TileBase[] pTiles)
     {
         TileBase tileToCompare = baseMap.GetTile(pPos);
@@ -126,38 +159,13 @@ public class TileManager : MonoBehaviour {
         return false;
     }
 
-    public bool CheckForUnit(int pX, int pY)
-    {
-        Vector3 pos = baseMap.GetCellCenterWorld(new Vector3Int(pX, pY, 0));
-        foreach (Unit unit in UnitManager.allUnits)
-        {
-            if (unit.transform.position == pos)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public Unit GetUnitAtPosition(int pX, int pY)
-    {
-        Vector3 pos = baseMap.GetCellCenterWorld(new Vector3Int(pX, pY, 0));
-        foreach (Unit unit in UnitManager.allUnits)
-        {
-            if (unit.transform.position == pos)
-            {
-                return unit;
-            }
-        }
-        return null;
-    }
-
+    //Get if there is a unit at a specific position
     public bool CheckForUnit(Vector3Int pPos)
     {
         Vector3 pos = baseMap.GetCellCenterWorld(pPos);
         foreach (Unit unit in UnitManager.allUnits)
         {
-            if (unit.transform.position == pos)
+            if (unit.transform.position == pos && !unit.isDead)
             {
                 return true;
             }
@@ -165,12 +173,13 @@ public class TileManager : MonoBehaviour {
         return false;
     }
 
+    //Get Unit at a specific position
     public Unit GetUnitAtPosition(Vector3Int pPos)
     {
         Vector3 pos = baseMap.GetCellCenterWorld(pPos);
         foreach (Unit unit in UnitManager.allUnits)
         {
-            if (unit.transform.position == pos)
+            if (unit.transform.position == pos && !unit.isDead)
             {
                 return unit;
             }

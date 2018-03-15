@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 public class Healthbar : MonoBehaviour
 {
-
     public Unit unit;
 
     public Vector3 offset;
@@ -75,6 +74,10 @@ public class Healthbar : MonoBehaviour
     {
         //Set health
         int health = unit.health;
+        if(health <= 0)
+        {
+            return;
+        }
         for (int i = 0; i < health; i++)
         {
             tiles[i].GetComponent<Image>().color = fullColor;

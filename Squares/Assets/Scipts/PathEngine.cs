@@ -239,6 +239,8 @@ public class Path
 
 public class PathEngine : MonoBehaviour {
 
+    public static PathEngine Instance;
+
     [SerializeField]
     private TileManager tileManager;
 
@@ -254,6 +256,10 @@ public class PathEngine : MonoBehaviour {
     [SerializeField]
     private TileBase[] arrowCorner_End;
 
+    void Awake()
+    {
+        Instance = this;   
+    }
 
     void Start()
     { 
@@ -264,6 +270,12 @@ public class PathEngine : MonoBehaviour {
         path.Add(new Vector3Int(0, -2, 0));
         DisplayPath(path, RoundManager.currentUnit);
         */
+    }
+
+    public Path GetPath(Unit pUnit, Vector3Int pLoc)
+    {
+        Path path = null;
+        return path;
     }
 
     public bool GeneratePathToLocation(Unit pUnit, Vector3Int pLoc)
@@ -315,24 +327,7 @@ public class PathEngine : MonoBehaviour {
         return true;
     }
 
-    public void PerformPath(Path pPath, Unit pUnit)
-    {
-        int turns = pUnit.turns;
-        int length = pPath.GetLength();
-        Vector3Int dest;
-        if (turns < length)
-        {
-            dest = pPath.GetPositionAtIndex(turns-1);
-            pUnit.turns = 0;
-        }
-        else
-        {
-            dest = pPath.GetPositionAtIndex(length-1);
-            pUnit.turns = turns;
-        }
-        pUnit.transform.position = tileManager.baseMap.GetCellCenterWorld(dest);
-    }
-
+    #region Displaying a path with arrows   
     public void DisplayPath(Path pPath, Unit pUnit)
     {
         //Clear arrows
@@ -487,4 +482,5 @@ public class PathEngine : MonoBehaviour {
 
         return tile;
     }
+    #endregion
 }

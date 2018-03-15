@@ -2,71 +2,139 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum TeamName { Enemies, Allies };
+
 public class RoundManager : MonoBehaviour {
 
-    [SerializeField]
-    private MaskGenerator maskGen;
+    public static RoundManager Instance;
 
     public static int round;
 
-    public static LinkedList<Unit> currentTeam;
+    public static List<Unit> currentTeam;
 
     public static Unit currentUnit;
 
-	// Use this for initialization
-	void Start () {
-        currentTeam = UnitManager.allies;
-        currentUnit = GameObject.FindWithTag("Ally").GetComponent<Unit>();
-        maskGen.GenerateMask(currentUnit);
-        round = 1;
+    public TeamName startTeamName;
+
+    void Awake()
+    {
+        Instance = this;
+    }
+
+    // Use this for initialization
+    void Start () {
+
+        //Setup currentTeam and currentUnit
+        if (startTeamName == TeamName.Allies)
+        {
+            currentTeam = UnitManager.allies;
+            currentUnit = UnitManager.allies[0];
+        }
+        else if (startTeamName == TeamName.Enemies)
+        {
+            currentTeam = UnitManager.enemies;
+            currentUnit = UnitManager.enemies[0];
+        }
+        RoundStart();
 	}
 	
+    //Start a round
+    void RoundStart()
+    {
+        round++;
+        print("Round: " + round + " start!");
+        MaskGenerator.Instance.GenerateMask(currentUnit);
+    }
+
+    //End a round
+    void RoundEnd()
+    {
+        print("Round: " + round + " end!");
+
+        //Swap teams
+        SwapTeams();
+
+        //Reset every unit turns and attacks
+        foreach (Unit unit in UnitManager.allUnits)
+        {
+            unit.turns = unit.maxTurns;
+            unit.attacks = unit.maxAttacks;
+        }
+    }
+
+    //Swap teams
+    private void SwapTeams()
+    {
+        if (currentTeam == UnitManager.allies)
+        {
+            currentTeam = UnitManager.enemies;
+            currentUnit = UnitManager.enemies[0];
+            MaskGenerator.Instance.GenerateMask(currentUnit);
+        }
+        else
+        {
+            currentTeam = UnitManager.allies;
+            currentUnit = UnitManager.allies[0];
+            MaskGenerator.Instance.GenerateMask(currentUnit);
+        }
+    }
+
+    public void EndTurn()
+    {
+        //If currentTeam equals start team, the other team needs to take their turns
+        if (startTeamName == TeamName.Allies && currentTeam == UnitManager.allies || startTeamName == TeamName.Enemies && currentTeam == UnitManager.enemies)
+        {
+            SwapTeams();
+        }
+        else
+        {
+            RoundEnd();
+            RoundStart();
+        }
+    }
+
 	// Update is called once per frame
 	void Update () {
 
-        //Check if turn of current team is over
-        bool teamCanAct = false;
-        //If currentUnit is out of turn
-        if (currentUnit.turns <= 0)
+        //Highlight current unit and reset the highlight for every other unit
+        foreach (Unit unit in UnitManager.allUnits)
+        {
+            if (currentUnit == unit)
+            {
+                unit.Highlight();
+            }
+            else
+            {
+                unit.ResetHighlight();
+            }
+        }
+
+        //If currentUnit cant act select a new Unit from that team that can act (if theres one)
+        if (!currentUnit.canAct)
         {
             foreach (Unit unit in currentTeam)
             {
                 if (unit.canAct)
                 {
                     currentUnit = unit;
-                    maskGen.GenerateMask(currentUnit);
-                    teamCanAct = true;
+                    break;
                 }
             }
         }
-        else
-        {
-            teamCanAct = true;
-        }
-        if (teamCanAct)
-        {
-            return;
-        }
 
-        print("Round Over!");
-        //Swap teams
-        if (currentTeam == UnitManager.allies)
+        //If current team cant act swap team or if round is over call RoundEnd()
+        if (!UnitManager.TeamCanAct(currentTeam))
         {
-            currentTeam = UnitManager.enemies;
-            currentUnit = GameObject.FindWithTag("Enemy").GetComponent<Unit>();
+            //If currentTeam equals start team, the other team needs to take their turns
+            if(startTeamName == TeamName.Allies && currentTeam == UnitManager.allies || startTeamName == TeamName.Enemies && currentTeam == UnitManager.enemies)
+            {
+                SwapTeams();
+            }
+            else
+            {
+                RoundEnd();
+                RoundStart();
+            }
         }
-        else
-        {
-            currentTeam = UnitManager.allies;
-            currentUnit = GameObject.FindWithTag("Ally").GetComponent<Unit>();
-        }
-
-        //Round is over
-        round++;
-        foreach (Unit unit in UnitManager.allUnits)
-        {
-            unit.turns = unit.maxTurns;
-        }
-        maskGen.GenerateMask(currentUnit);
     }
 }

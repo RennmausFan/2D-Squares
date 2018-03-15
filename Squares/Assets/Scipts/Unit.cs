@@ -17,6 +17,8 @@ public enum CharClasses
 
 public class Unit : MonoBehaviour {
 
+    public GameObject healthBar;
+
     [SerializeField]
     private TileManager tileManager;
 
@@ -32,9 +34,10 @@ public class Unit : MonoBehaviour {
     //Attack positions as Vector3Int relative to this unit
     public Vector3Int[] attackPositions;
 
-    public LinkedList<Unit> team = new LinkedList<Unit>();
+    public List<Unit> team = new List<Unit>();
 
     public bool canAct;
+    public bool isDead;
 
     public float animWalkSpeed;
 
@@ -51,11 +54,12 @@ public class Unit : MonoBehaviour {
 
     public int def, defBase;
 
-    [Range(0, 10)]
+    [Range(-3, 3)]
     public int moral;
 
     // Use this for initialization
     void Start () {
+        //Assign this unit to team
 		if (tag == "Ally")
         {
             team = UnitManager.allies;
@@ -69,14 +73,15 @@ public class Unit : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
-        if (health <= 0)
+        //Check health
+        if (health <= 0 && !isDead)
         {
-            UnitManager.allUnits.Remove(this);
-            team.Remove(this);
-            Destroy(gameObject);
+            isDead = true;
+            Die();
         }
-
-        if (turns <= 0)
+        
+        //Set can act
+        if (turns <= 0 && attacks <= 0)
         {
             canAct = false;
         }
@@ -84,53 +89,15 @@ public class Unit : MonoBehaviour {
         {
             canAct = true;
         }
-
-        if (RoundManager.currentUnit != this)
-        {
-            ResetHighlight();
-            return;
-        }
-        Highlight();
-		if (Input.GetKeyDown(KeyCode.A))
-        {
-            Move(-1, 0);
-        }
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            Move(1, 0);
-        }
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            Move(0, -1);
-        }
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            Move(0, 1);
-        }
     }
+
+    #region Movement
 
     public void Move(int pX, int pY)
     {
-        Vector3Int move = new Vector3Int(pX, pY, 0);
-        Vector3Int unitPos = tileManager.baseMap.WorldToCell(transform.position);
-        Vector3 dest = tileManager.baseMap.GetCellCenterWorld(unitPos + move);
-
-        Vector3Int checkTile = unitPos + move;
-
-        int distance = CalDistance(unitPos, checkTile);
-        //Returns if not enough turns
-        if (distance > turns)
-        {
-            return;
-        }
-        if (!TileValidForUnit(checkTile))
-        {
-            return;
-        }
-
-        transform.position = dest;
-        turns -= distance;
-        maskGen.GenerateMask(this);
+        Path path = new Path(GetPos());
+        path.Add(new Vector3Int(pX, pY, 0));
+        WalkPath(path);
     }
 
     public void MoveTo(int pX, int pY)
@@ -168,6 +135,11 @@ public class Unit : MonoBehaviour {
         tileManager.arrowMap.ClearAllTiles();
     }
 
+    #endregion
+
+    #region Util
+
+    //Move this unit over time
     IEnumerator MoveObject(Vector3 start, Vector3 target, float overTime)
     {
         TileManager.unitIsMoving = true;
@@ -179,10 +151,10 @@ public class Unit : MonoBehaviour {
         }
         transform.position = target;
         TileManager.unitIsMoving = false;
+        //Generate new mask after unit is has moved
         maskGen.GenerateMask(RoundManager.currentUnit);
     }
 
-    #region Util
     //Return true if Unit is allowed to stand on the tile at the given position
     public bool TileValidForUnit(Vector3Int pPos)
     {
@@ -222,15 +194,45 @@ public class Unit : MonoBehaviour {
     }
     #endregion
 
+    //Triggered if health equals zero
+    public void Die()
+    {
+        healthBar.SetActive(false);
+        UnitManager.allUnits.Remove(this);
+        team.Remove(this);
+        if (GetComponent<Animator>() != null)
+        {
+            GetComponent<Animator>().Play("DeathFade");
+        }
+    }
+
+    //Triggered if health equals zero
+    public void DieAfterAnim()
+    {
+        Destroy(gameObject);
+    }
+
+    //Attack other unit (calculate and apply damage)
     public void Attack(Unit pTarget)
     {
+        if(attacks <= 0)
+        {
+            return;
+        }
         int damage = atk - pTarget.def;
         if (damage <= 0)
         {
             damage = 1;
         }
+
+        if (pTarget.GetComponent<Animator>() != null)
+        {
+            pTarget.GetComponent<Animator>().Play("TakeDamage");
+        }
+
         pTarget.health -= damage;
-        turns = 0;
+        attacks -= 1;
+        maskGen.GenerateMask(RoundManager.currentUnit);
     }
 
     //Activate selection
