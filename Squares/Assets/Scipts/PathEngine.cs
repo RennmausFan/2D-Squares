@@ -3,11 +3,42 @@ using System.Collections.Generic;
 using UnityEngine.Tilemaps;
 using UnityEngine;
 
+
+//Allows to sort Nodes by their f value --> Needed for NodeList
+public class NodeSorter : IComparer<Node>
+{
+    public int Compare(Node pA, Node pB)
+    {
+        if (pA.f > pB.f)
+        {
+            return 1;
+        }
+        else if (pB.f > pA.f)
+        {
+            return -1;
+        }
+        else
+        {
+            if (pA.h > pB.h)
+            {
+                return 1;
+            }
+            else if (pB.h > pA.h)
+            {
+                return -1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+    }
+}
+
 public class Path
 {
 
     public List<Vector3Int> moves = new List<Vector3Int>();
-    public List<bool> reversedMoves = new List<bool>();
     public Vector3Int startpoint;
 
     public Path(Vector3Int pStartpoint)
@@ -19,7 +50,6 @@ public class Path
     public void Add(Vector3Int pNewMove)
     {
         moves.Add(pNewMove);
-        reversedMoves.Add(false);
     }
 
     //Returns the length of all vectors in queue
@@ -41,6 +71,37 @@ public class Path
         l += Mathf.Abs(pMove.x);
         l += Mathf.Abs(pMove.y);
         return l;
+    }
+
+    public Path MergeSubVectors()
+    {
+        Vector3Int lastV = Vector3Int.zero;
+        Vector3Int combinedV = Vector3Int.zero;
+        Path path = new Path(startpoint);
+        bool isFirst = true;
+        foreach (Vector3Int v in moves)
+        {
+            if (lastV == v)
+            {
+                combinedV += v;
+            }
+            else
+            {
+                if (isFirst)
+                {
+                    combinedV = v;
+                    isFirst = false;
+                }
+                else
+                {
+                    path.Add(combinedV);
+                    combinedV = v;
+                }
+            }
+            lastV = v;
+        }
+        path.Add(combinedV);
+        return path;
     }
 
     //Breaks down a Vector3Int in indivual subvectors with a magnitude of 1 and returns them as an array
@@ -128,14 +189,7 @@ public class Path
         foreach (Vector3Int v in moves)
         {
             Vector3Int[] subvectors;
-            if (reversedMoves.ToArray()[moveIndex])
-            {
-                subvectors = BreakDownVectorReversed(v);
-            }
-            else
-            {
-                subvectors = BreakDownVector(v);
-            }
+            subvectors = BreakDownVector(v);
             for (int i = 0; i < subvectors.Length; i++)
             {
                 if (index > pIndex)
@@ -160,14 +214,7 @@ public class Path
         foreach (Vector3Int v in moves)
         {
             Vector3Int[] subvectors;
-            if (reversedMoves.ToArray()[moveIndex])
-            {
-                subvectors = BreakDownVectorReversed(v);
-            }
-            else
-            {
-                subvectors = BreakDownVector(v);
-            }
+            subvectors = BreakDownVector(v);
             for (int i = 0; i < subvectors.Length; i++)
             {
                 tilePos += subvectors[i];
@@ -189,14 +236,7 @@ public class Path
         foreach (Vector3Int v in moves)
         {
             Vector3Int[] subvectors;
-            if (reversedMoves.ToArray()[moveIndex])
-            {
-                subvectors = BreakDownVectorReversed(v);
-            }
-            else
-            {
-                subvectors = BreakDownVector(v);
-            }
+            subvectors = BreakDownVector(v);
             for (int i = 0; i < subvectors.Length; i++)
             {
                 tilePos = subvectors[i];
@@ -235,6 +275,86 @@ public class Path
         temp += "Length: " + GetLength();
         MonoBehaviour.print(temp);
     }
+
+    public void AddFirst(Vector3Int pMove)
+    {
+        moves.Insert(0, pMove);
+    }
+}
+
+public class Node
+{
+    public Vector3Int pos;
+
+    //Connection to the node before in this path
+    public Node lastNode;
+
+    //g represents the distance traveled so far (start --> this)
+    public int g;
+
+    //h represents the distance to the destination (approximately)
+    public int h;
+
+    //optinal costs or credit friction for a field
+    public int optional;
+
+    //The sum of g, h and optional
+    public int f;
+
+    //Is Node still relevant?
+    public bool isClosed;
+
+    public Node(Vector3Int pPos, Node pLastNode, Vector3Int pDestination, int pG)
+    {
+        pos = pPos;
+        lastNode = pLastNode;
+
+        g = pG;
+
+        Vector3Int distance = pDestination - pos;
+        h = Mathf.Abs(distance.x) + Mathf.Abs(distance.y);
+
+        optional = 0;
+         
+        f = g + h + optional;
+    }
+
+    public Node(int pF, int pH)
+    {
+        f = pF;
+        h = pH;
+    }
+
+    //Prints all values from this node
+    public void Print()
+    {
+        string temp;
+        if (lastNode == null)
+        {
+            temp = "None";
+        }
+        else
+        {
+            temp = lastNode.pos.ToString();
+        }
+        string text = "Pos: " + pos + ", g: " + g + ", last node pos: " + temp + ", h: " + h + ", optional: " + optional + ", f : " + f;
+        MonoBehaviour.print(text);
+    }
+
+    public string GetText()
+    {
+        string temp;
+        if (lastNode == null)
+        {
+            temp = "None";
+        }
+        else
+        {
+            temp = lastNode.pos.ToString();
+        }
+        string text = "Pos: " + pos + ", g: " + g + ", last node pos: " + temp + ", h: " + h + ", optional: " + optional + ", f : " + f;
+        return text;
+    }
 }
 
 public class PathEngine : MonoBehaviour {
@@ -256,76 +376,142 @@ public class PathEngine : MonoBehaviour {
     [SerializeField]
     private TileBase[] arrowCorner_End;
 
+    List<Node> openList = new List<Node>();
+    List<Node> closedList = new List<Node>();
+
+    Node currentNode;
+
+    Vector3Int destination;
+
     void Awake()
     {
-        Instance = this;   
+        Instance = this;
     }
 
     void Start()
-    { 
-        /*  
-        Path path = new Path(RoundManager.currentUnit.GetPos());
-        path.Add(new Vector3Int(0, 1, 0));
-        path.Add(new Vector3Int(-2, 0, 0));
-        path.Add(new Vector3Int(0, -2, 0));
-        DisplayPath(path, RoundManager.currentUnit);
-        */
+    {
+        Path path = GetPath(RoundManager.currentUnit, RoundManager.currentUnit.GetPos() + (new Vector3Int(3, 7, 0)));
+        path.Print();
     }
 
-    public Path GetPath(Unit pUnit, Vector3Int pLoc)
-    {
-        Path path = null;
-        return path;
-    }
+    #region A* Algorithm
 
-    public bool GeneratePathToLocation(Unit pUnit, Vector3Int pLoc)
+    //Get a path by calculating the shorthest path
+    public Path GetPath(Unit pUnit, Vector3Int pTarget)
     {
-        Vector3Int unitPos = pUnit.GetPos();
-        Vector3Int move1 = pLoc - unitPos;
-        Path path = new Path(unitPos);
-        path.Add(move1);
-        if (!CheckPath(path, pUnit))
+        openList.Clear();
+        closedList.Clear();
+        destination = pTarget;
+
+        Node a = new Node(10, 5);
+        Node b = new Node(10, 6);
+        print(new NodeSorter().Compare(a, b));
+
+        print(pUnit.GetPos());
+        print(destination);
+
+        if (!pUnit.TileValidForUnit(destination))
         {
-            path.reversedMoves[0] = true;
-            if (!CheckPath(path, pUnit))
+            print("PathEngine: Target position is not a valid tile for this unit!");
+            return null;
+        }
+
+        Path path = new Path(pUnit.GetPos());
+
+        //Create start and goal node
+        Node goalNode = new Node(destination, null, destination, 0);
+        Node startNode = new Node(pUnit.GetPos(), null, destination, 0);
+
+        //Add the startNode to openlist and set it as currentNode
+        openList.Add(startNode);
+        currentNode = openList[0];
+
+        int count = 0;
+        while (currentNode.pos != destination)
+        {
+            count++;
+            if (count >= 500)
             {
-                return false;
+                openList.Sort(new NodeSorter());
+                foreach (Node n in openList)
+                {
+                    print(n.pos + " " + n.f + " " + n.h + " " + n.g);
+                }
+                print("Infinity Loop!" + openList.Count);
+                return null;
             }
-        }
-        return true;
-    }
-
-    public Path GetPathToLocation(Unit pUnit, Vector3Int pLoc)
-    {
-        Vector3Int unitPos = pUnit.GetPos();
-        Vector3Int move1 = pLoc - unitPos;
-        Path path = new Path(unitPos);
-        path.Add(move1);
-        if (!CheckPath(path, pUnit))
-        {
-            path.reversedMoves[0] = true;
-        }
-        return path;
-    }
-
-    public bool CheckPath(Path pPath, Unit pUnit)
-    {
-        Vector3Int[] positions = pPath.GetAllPositions();
-        foreach (Vector3Int pos in positions)
-        {
-            if (!pUnit.TileValidForUnit(pos))
+            //Call NextNode() until the goalNode is the currentNode
+            if (openList.Count == 0)
             {
-                return false;
+                print("No Path foound --> Using Debug Path");
+                return null;
+
             }
+            NextNode(pUnit);
         }
-        int turns = pUnit.turns;
-        int length = pPath.GetLength();
-        if (turns < length)
+
+        //Get path by revisiting shortest path
+        while (currentNode.pos != startNode.pos)
         {
-            return false;
+            Node node = currentNode;
+            currentNode = currentNode.lastNode;
+            Vector3Int walk = node.pos - currentNode.pos;
+            path.AddFirst(walk);
         }
-        return true;
+        print(count);
+        return path.MergeSubVectors();
     }
+
+    public void NextNode(Unit pUnit)
+    {
+        //Get Node with the smallest f value
+        openList.Sort(new NodeSorter());
+        currentNode = openList[0];
+        print(currentNode.pos + " " + currentNode.f + " " + currentNode.h + " " + currentNode.g);
+        int g = currentNode.g + 1;
+
+        //Remove the currentNode and add it to the closedList
+        openList.Remove(currentNode);
+        currentNode.isClosed = true;
+        closedList.Add(currentNode);
+
+        //Neighbor tiles
+        Node leftNode = new Node(currentNode.pos + Vector3Int.left, currentNode, destination, g);
+        Node rightNode = new Node(currentNode.pos + Vector3Int.right, currentNode, destination, g);
+        Node upNode = new Node(currentNode.pos + Vector3Int.up, currentNode, destination, g);
+        Node downNode = new Node(currentNode.pos + Vector3Int.down, currentNode, destination, g);
+
+        AddNote(leftNode, pUnit);
+        AddNote(rightNode, pUnit);
+        AddNote(upNode, pUnit);
+        AddNote(downNode, pUnit);
+    }
+
+    public void AddNote(Node toAdd, Unit pUnit)
+    {
+        if (pUnit.TileValidForUnit(toAdd.pos))
+        {
+            foreach (Node n in closedList)
+            {
+                //If to nodes are the same
+                if (n.pos == toAdd.pos)
+                {
+                    //Only add toAdd if the new node is better (smaller f / h value)
+                    if (new NodeSorter().Compare(toAdd, n) == -1)
+                    {
+                        openList.Add(toAdd);
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+            }
+            openList.Add(toAdd);
+        }
+    }
+
+    #endregion
 
     #region Displaying a path with arrows   
     public void DisplayPath(Path pPath, Unit pUnit)
@@ -367,10 +553,10 @@ public class PathEngine : MonoBehaviour {
         TileBase tile = null;
 
         //Directional vectors
-        Vector3Int left = new Vector3Int(-1, 0, 0);
-        Vector3Int right = new Vector3Int(1, 0, 0);
-        Vector3Int up = new Vector3Int(0, 1, 0);
-        Vector3Int down = new Vector3Int(0, -1, 0);
+        Vector3Int left = Vector3Int.left;
+        Vector3Int right = Vector3Int.right;
+        Vector3Int up = Vector3Int.up;
+        Vector3Int down = Vector3Int.down;
 
         //Vectors are orthogonal --> Corner
         if (pCurrent * pNext == Vector3Int.zero)

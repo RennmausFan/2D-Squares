@@ -54,17 +54,18 @@ public class TileManager : MonoBehaviour {
         {
             return;
         }
+
         //Get tile mouse is focusing on
         Vector3 mousePos = Input.mousePosition;
         Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
         Vector3Int tilePos = masksMap.WorldToCell(mousePosWorld);
 
-        //Walk and Attack and select Units
+        #region Move, Attack and Select Units
         if (Input.GetMouseButtonDown(0))
         {
             if (masksMap.GetTile(tilePos) == greenMask)
             {
-                RoundManager.currentUnit.WalkPath(PathEngine.Instance.GetPathToLocation(RoundManager.currentUnit, tilePos));
+                RoundManager.currentUnit.WalkPath(PathEngine.Instance.GetPath(RoundManager.currentUnit, tilePos));
             }
             else if (masksMap.GetTile(tilePos) == redMask)
             {
@@ -92,7 +93,9 @@ public class TileManager : MonoBehaviour {
                 }
             }
         }
-        
+        #endregion
+
+        #region Display Path and Spawn StatsDisplayer
         if (tilePos != lastTilePos)
         {
             lastTilePos = tilePos;
@@ -102,10 +105,13 @@ public class TileManager : MonoBehaviour {
                 lastUnit.healthBar.SetActive(true);
             }
             //Generate Path to location
-            if (PathEngine.Instance.GeneratePathToLocation(RoundManager.currentUnit, tilePos))
+            if (masksMap.GetTile(tilePos) == greenMask)
             {
-                Path path = PathEngine.Instance.GetPathToLocation(RoundManager.currentUnit, tilePos);
-                PathEngine.Instance.DisplayPath(path, RoundManager.currentUnit);
+                Path path = PathEngine.Instance.GetPath(RoundManager.currentUnit, tilePos);
+                if (path != null)
+                {
+                    PathEngine.Instance.DisplayPath(path, RoundManager.currentUnit);
+                }
             }
             //Destroy lastStatsDisplayer if tilePos changes
             if (lastStatsDisplayer != null)
@@ -122,6 +128,7 @@ public class TileManager : MonoBehaviour {
                 lastUnit = unit;
             }
         }
+        #endregion
 
         //Destroy lastStatsDisplayer if unit is dead
         if (lastUnit != null && lastStatsDisplayer != null)

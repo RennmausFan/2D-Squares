@@ -82,7 +82,12 @@ public class MaskGenerator: MonoBehaviour{
         toRemove.Clear();
         for (int i = 0; i<maskGreen.Count; i++)
         {
-            if (!PathEngine.Instance.GeneratePathToLocation(pUnit, maskGreen[i]))
+            Path path = PathEngine.Instance.GetPath(pUnit, maskGreen[i]);
+            if (path == null)
+            {
+                toRemove.Add(maskGreen[i]);
+            }
+            else if(path.GetLength() > pUnit.turns)
             {
                 toRemove.Add(maskGreen[i]);
             }

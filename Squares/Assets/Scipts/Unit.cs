@@ -100,29 +100,6 @@ public class Unit : MonoBehaviour {
         WalkPath(path);
     }
 
-    public void MoveTo(int pX, int pY)
-    {
-        Vector3Int moveTo = new Vector3Int(pX, pY, 0);
-        Vector3Int unitPos = tileManager.baseMap.WorldToCell(transform.position);
-
-        int distance = CalDistance(unitPos, moveTo);
-        //Returns if not enough turns
-        if (distance > turns)
-        {
-            return;
-        }
-        if (!TileValidForUnit(moveTo))
-        {
-            return;
-        }
-
-        Vector3 dest = tileManager.baseMap.GetCellCenterWorld(moveTo);
-        transform.position = dest;
-        turns -= distance;
-        maskGen.GenerateMask(this);
-        tileManager.arrowMap.ClearAllTiles();
-    }
-
     public void WalkPath(Path pPath)
     {
         List<Vector3Int> moves = pPath.moves;
