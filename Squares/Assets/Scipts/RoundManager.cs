@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum TeamName { Enemies, Allies };
 
@@ -13,6 +14,9 @@ public class RoundManager : MonoBehaviour {
     public static List<Unit> currentTeam;
 
     public static Unit currentUnit;
+
+    [SerializeField]
+    private GameObject popUp;
 
     public TeamName startTeamName;
 
@@ -43,6 +47,8 @@ public class RoundManager : MonoBehaviour {
     {
         round++;
         print("Round: " + round + " start!");
+        GameObject go = Instantiate(popUp, Vector3.zero, Quaternion.identity);
+        go.GetComponentInChildren<Text>().text = "ROUND " + round + " START!";
         MaskGenerator.Instance.GenerateMask(currentUnit);
     }
 
@@ -59,6 +65,7 @@ public class RoundManager : MonoBehaviour {
         {
             unit.turns = unit.maxTurns;
             unit.attacks = unit.maxAttacks;
+            unit.buffs.OnRoundEnd();
         }
     }
 
@@ -79,6 +86,7 @@ public class RoundManager : MonoBehaviour {
         }
     }
 
+    //Method triggered by "Turn over" button
     public void EndTurn()
     {
         //If currentTeam equals start team, the other team needs to take their turns

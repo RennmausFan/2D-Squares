@@ -7,8 +7,6 @@ public class Healthbar : MonoBehaviour
 {
     public Unit unit;
 
-    public Vector3 offset;
-
     public float gapScale;
 
     public Color fullColor;
@@ -40,7 +38,7 @@ public class Healthbar : MonoBehaviour
 
         gapSize = (totalWidth * gapScale) * count / (count - 1);
         tileWidth = (totalWidth / count) - (totalWidth * gapScale);
-        spawnPoint = offset + new Vector3(-totalWidth / 2, 0, 0);
+        spawnPoint = new Vector3(-totalWidth / 2, 0, 0);
 
         tiles = new GameObject[count];
         for (int i = 0; i < count; i++)

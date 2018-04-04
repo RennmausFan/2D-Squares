@@ -39,10 +39,55 @@ public class StatsDisplayer : MonoBehaviour {
 	void Initialize() {
 
         className.text = unit.unitClass.ToString();
+
         statTurns.text = unit.turns.ToString();
+        //Debuff
+        if (unit.turns < unit.buffs.defaultTurns)
+        {
+            statTurns.color = Color.red;
+        }
+        //Buff
+        else if (unit.turns > unit.buffs.defaultTurns)
+        {
+            statTurns.color = Color.green;
+        }
+
         statAttacks.text = unit.attacks.ToString();
+        //Debuff
+        if (unit.attacks < unit.buffs.defaultAttacks)
+        {
+            statAttacks.color = Color.red;
+        }
+        //Buff
+        else if (unit.attacks > unit.buffs.defaultAttacks)
+        {
+            statAttacks.color = Color.green;
+        }
+
         statAtk.text = unit.atk.ToString();
+        //Debuff
+        if (unit.atk < unit.buffs.defaultAtk)
+        {
+            statAtk.color = Color.red;
+        }
+        //Buff
+        else if (unit.atk > unit.buffs.defaultAtk)
+        {
+            statAtk.color = Color.green;
+        }
+
         statDef.text = unit.def.ToString();
+        //Debuff
+        if (unit.def < unit.buffs.defaultDef)
+        {
+            statDef.color = Color.red;
+        }
+        //Buff
+        else if (unit.def > unit.buffs.defaultDef)
+        {
+            statDef.color = Color.green;
+        }
+
         healthBar.unit = unit;
 
         //Moral

@@ -7,6 +7,7 @@ public enum CharClasses
 {
     Archer,
     Samurai,
+    Spearmen,
     Shogun,
     Tank,
     Horse,
@@ -16,6 +17,8 @@ public enum CharClasses
 };
 
 public class Unit : MonoBehaviour {
+
+    public BuffManager buffs;
 
     public GameObject healthBar;
 
@@ -41,6 +44,8 @@ public class Unit : MonoBehaviour {
 
     public float animWalkSpeed;
 
+    public string describtion;
+
     [Header("Stats")]
     public CharClasses unitClass;
 
@@ -50,17 +55,18 @@ public class Unit : MonoBehaviour {
 
     public int attacks, maxAttacks;
 
-    public int atk, atkBase;
+    public int atk;
 
-    public int def, defBase;
+    public int def;
 
     [Range(-3, 3)]
     public int moral;
 
     // Use this for initialization
     void Start () {
+        buffs = new BuffManager(this);
         //Assign this unit to team
-		if (tag == "Ally")
+        if (tag == "Ally")
         {
             team = UnitManager.allies;
         }
@@ -89,27 +95,58 @@ public class Unit : MonoBehaviour {
         {
             canAct = true;
         }
+
+        //Moral De-/Buffs
+        switch (moral)
+        {
+            //Huge debuff
+            case -3:
+                buffs.AddBuff(Buff.HugeMoralDebuff);
+                buffs.RemoveBuff(Buff.SmallMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralBuff);
+                buffs.RemoveBuff(Buff.SmallMoralDebuff);
+                break;
+            
+            //Small debuff
+            case -2:
+                buffs.AddBuff(Buff.SmallMoralDebuff);
+                buffs.RemoveBuff(Buff.SmallMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralDebuff);
+                break;
+           
+            //Small buff
+            case 2:
+                buffs.AddBuff(Buff.SmallMoralBuff);
+                buffs.RemoveBuff(Buff.SmallMoralDebuff);
+                buffs.RemoveBuff(Buff.HugeMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralDebuff);
+                break;
+
+            //Huge buff 
+            case 3:
+                buffs.AddBuff(Buff.HugeMoralBuff);
+                buffs.RemoveBuff(Buff.SmallMoralDebuff);
+                buffs.RemoveBuff(Buff.SmallMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralDebuff);
+                break;
+
+            //Nothing happens    
+            default:
+                buffs.RemoveBuff(Buff.SmallMoralBuff);
+                buffs.RemoveBuff(Buff.HugeMoralBuff);
+                buffs.RemoveBuff(Buff.SmallMoralDebuff);
+                buffs.RemoveBuff(Buff.HugeMoralDebuff);
+                break;
+        }
     }
 
     #region Movement
 
-    public void Move(int pX, int pY)
-    {
-        Path path = new Path(GetPos());
-        path.Add(new Vector3Int(pX, pY, 0));
-        WalkPath(path);
-    }
-
     public void WalkPath(Path pPath)
     {
-        List<Vector3Int> moves = pPath.moves;
-        foreach (Vector3Int v in moves)
-        {
-            Vector3 desiredPos = transform.position + v;
-            StartCoroutine(MoveObject(transform.position, desiredPos, animWalkSpeed));
-        }
+        StartCoroutine(MoveObjectAlongPath(pPath, animWalkSpeed));
         turns -= pPath.GetLength();
-        tileManager.arrowMap.ClearAllTiles();
     }
 
     #endregion
@@ -128,6 +165,29 @@ public class Unit : MonoBehaviour {
         }
         transform.position = target;
         TileManager.unitIsMoving = false;
+        //Generate new mask after unit is has moved
+        maskGen.GenerateMask(RoundManager.currentUnit);
+    }
+
+    //Move this unit over time
+    IEnumerator MoveObjectAlongPath(Path pPath, float overTime)
+    {
+        TileManager.unitIsMoving = true;
+        //Move on every subPath
+        foreach(Vector3Int v in pPath.moves)
+        {
+            Vector3 start = transform.position;
+            Vector3 destination = start + v;
+            float startTime = Time.time;
+            while (Time.time < startTime + overTime)
+            {
+                transform.position = Vector3.Lerp(start, destination, (Time.time - startTime) / overTime);
+                yield return null;
+            }
+            transform.position = destination;
+        }
+        TileManager.unitIsMoving = false;
+        tileManager.arrowMap.ClearAllTiles();
         //Generate new mask after unit is has moved
         maskGen.GenerateMask(RoundManager.currentUnit);
     }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine.Tilemaps;
 using UnityEngine;
 
-
 //Allows to sort Nodes by their f value --> Needed for NodeList
 public class NodeSorter : IComparer<Node>
 {
@@ -301,9 +300,6 @@ public class Node
     //The sum of g, h and optional
     public int f;
 
-    //Is Node still relevant?
-    public bool isClosed;
-
     public Node(Vector3Int pPos, Node pLastNode, Vector3Int pDestination, int pG)
     {
         pos = pPos;
@@ -388,28 +384,21 @@ public class PathEngine : MonoBehaviour {
         Instance = this;
     }
 
-    void Start()
-    {
-        Path path = GetPath(RoundManager.currentUnit, RoundManager.currentUnit.GetPos() + (new Vector3Int(3, 7, 0)));
-        path.Print();
-    }
-
     #region A* Algorithm
 
     //Get a path by calculating the shorthest path
     public Path GetPath(Unit pUnit, Vector3Int pTarget)
     {
+        //Clear lists
         openList.Clear();
         closedList.Clear();
+
         destination = pTarget;
 
-        Node a = new Node(10, 5);
-        Node b = new Node(10, 6);
-        print(new NodeSorter().Compare(a, b));
+        //print(pUnit.GetPos());
+        //print(destination);
 
-        print(pUnit.GetPos());
-        print(destination);
-
+        //Return if target pos isnt valid
         if (!pUnit.TileValidForUnit(destination))
         {
             print("PathEngine: Target position is not a valid tile for this unit!");
@@ -418,32 +407,19 @@ public class PathEngine : MonoBehaviour {
 
         Path path = new Path(pUnit.GetPos());
 
-        //Create start and goal node
-        Node goalNode = new Node(destination, null, destination, 0);
+        //Create start node
         Node startNode = new Node(pUnit.GetPos(), null, destination, 0);
 
         //Add the startNode to openlist and set it as currentNode
         openList.Add(startNode);
         currentNode = openList[0];
 
-        int count = 0;
+        //Calculate path
         while (currentNode.pos != destination)
         {
-            count++;
-            if (count >= 500)
-            {
-                openList.Sort(new NodeSorter());
-                foreach (Node n in openList)
-                {
-                    print(n.pos + " " + n.f + " " + n.h + " " + n.g);
-                }
-                print("Infinity Loop!" + openList.Count);
-                return null;
-            }
-            //Call NextNode() until the goalNode is the currentNode
             if (openList.Count == 0)
             {
-                print("No Path foound --> Using Debug Path");
+                print("No Path found");
                 return null;
 
             }
@@ -458,7 +434,7 @@ public class PathEngine : MonoBehaviour {
             Vector3Int walk = node.pos - currentNode.pos;
             path.AddFirst(walk);
         }
-        print(count);
+
         return path.MergeSubVectors();
     }
 
@@ -467,12 +443,13 @@ public class PathEngine : MonoBehaviour {
         //Get Node with the smallest f value
         openList.Sort(new NodeSorter());
         currentNode = openList[0];
-        print(currentNode.pos + " " + currentNode.f + " " + currentNode.h + " " + currentNode.g);
+
+        //print(currentNode.pos + " " + currentNode.f + " " + currentNode.h + " " + currentNode.g);
+
         int g = currentNode.g + 1;
 
         //Remove the currentNode and add it to the closedList
         openList.Remove(currentNode);
-        currentNode.isClosed = true;
         closedList.Add(currentNode);
 
         //Neighbor tiles

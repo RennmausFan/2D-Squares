@@ -17,11 +17,15 @@ public class TileManager : MonoBehaviour {
 
     public Tilemap arrowMap;
 
+    public Tilemap unitPositioning;
+
     [SerializeField]
     private TileBase debugTile;
 
     private GameObject lastStatsDisplayer;
     private Unit lastUnit;
+
+    private Path currentAttackPath;
 
     [SerializeField]
     private GameObject statsDisplayer;
@@ -60,27 +64,35 @@ public class TileManager : MonoBehaviour {
         Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
         Vector3Int tilePos = masksMap.WorldToCell(mousePosWorld);
 
+        Unit currentUnit = RoundManager.currentUnit;
+
         #region Move, Attack and Select Units
         if (Input.GetMouseButtonDown(0))
         {
             if (masksMap.GetTile(tilePos) == greenMask)
             {
-                RoundManager.currentUnit.WalkPath(PathEngine.Instance.GetPath(RoundManager.currentUnit, tilePos));
+                currentUnit.WalkPath(PathEngine.Instance.GetPath(currentUnit, tilePos));
             }
             else if (masksMap.GetTile(tilePos) == redMask)
             {
                 //Check if unit is in range;
-                Vector3Int[] attackPositions = RoundManager.currentUnit.attackPositions;
+                Vector3Int[] attackPositions = currentUnit.attackPositions;
+                bool canAttack = false;
                 if (attackPositions == null)
                 {
                     return;
                 }
                 foreach (Vector3Int v in attackPositions)
                 {
-                    if (RoundManager.currentUnit.GetPos() + v == tilePos)
+                    if (currentUnit.GetPos() + v == tilePos)
                     {
-                        RoundManager.currentUnit.Attack(GetUnitAtPosition(tilePos));
+                        currentUnit.Attack(GetUnitAtPosition(tilePos));
+                        canAttack = true;
                     }
+                }
+                if (currentAttackPath != null && !canAttack)
+                {
+                    currentUnit.WalkPath(currentAttackPath);
                 }
             }
             else if (CheckForUnit(tilePos))
@@ -89,7 +101,8 @@ public class TileManager : MonoBehaviour {
                 if (unitAtPos.team == RoundManager.currentTeam)
                 {
                     RoundManager.currentUnit = unitAtPos;
-                    MaskGenerator.Instance.GenerateMask(RoundManager.currentUnit);
+                    currentUnit = unitAtPos;
+                    MaskGenerator.Instance.GenerateMask(currentUnit);
                 }
             }
         }
@@ -104,15 +117,36 @@ public class TileManager : MonoBehaviour {
             {
                 lastUnit.healthBar.SetActive(true);
             }
+
             //Generate Path to location
             if (masksMap.GetTile(tilePos) == greenMask)
             {
-                Path path = PathEngine.Instance.GetPath(RoundManager.currentUnit, tilePos);
+                Path path = PathEngine.Instance.GetPath(currentUnit, tilePos);
                 if (path != null)
                 {
-                    PathEngine.Instance.DisplayPath(path, RoundManager.currentUnit);
+                    PathEngine.Instance.DisplayPath(path, currentUnit);
                 }
             }
+
+            //Generate Path to attack position
+            if (masksMap.GetTile(tilePos) == redMask)
+            {
+                Vector3Int[] attackPositions = currentUnit.attackPositions;
+                if (attackPositions == null)
+                {
+                    return;
+                }
+                foreach (Vector3Int v in attackPositions)
+                {
+                    Path attackPath = PathEngine.Instance.GetPath(currentUnit, tilePos + v);
+                    if (attackPath != null && masksMap.GetTile(tilePos + v))
+                    {
+                        PathEngine.Instance.DisplayPath(attackPath, currentUnit);
+                        currentAttackPath = attackPath;
+                    }
+                }
+            }
+
             //Destroy lastStatsDisplayer if tilePos changes
             if (lastStatsDisplayer != null)
             {
