@@ -61,14 +61,19 @@ public class BuffManager{
     //Is triggered everytime a round ends
     public void OnRoundEnd()
     {
+        /*
         foreach (Buff b in buffs)
         {
             if (b.timer == 0)
             {
                 RemoveBuff(b);
             }
-            b.timer -= 1;
+            else
+            {
+                b.timer -= 1;
+            }
         }
+        */
     }
 
     //Update the values of the owner
@@ -77,8 +82,8 @@ public class BuffManager{
         //Set values to default
         owner.atk = defaultAtk;
         owner.def = defaultDef;
-        owner.turns = defaultTurns;
-        owner.attacks = defaultAttacks;
+        owner.turns = defaultTurns - owner.walked;
+        owner.attacks = defaultAttacks - owner.attacked;
 
         //Apply each buff
         foreach (Buff b in buffs)

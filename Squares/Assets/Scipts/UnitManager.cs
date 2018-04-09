@@ -10,31 +10,25 @@ public class UnitManager : MonoBehaviour {
     public static List<Unit> enemies = new List<Unit>();
 
     // Use this for initialization
-    void Start () {
+    public static void OnPlay() {
+        allUnits.Clear();
+        allies.Clear();
+        enemies.Clear();
+        
         Unit[] units = FindObjectsOfType<Unit>();
         foreach (Unit unit in units)
         {
             if (unit.tag == "Ally")
             {
                 allies.Add(unit);
+                unit.team = allies;
             }
             else if (unit.tag == "Enemy")
             {
                 enemies.Add(unit);
+                unit.team = enemies;
             }
             allUnits.Add(unit);
-        }
-    }
-
-   void Update()
-    {
-        if (allies.Count == 0)
-        {
-            print("The Enemies win!");
-        }
-        if (enemies.Count == 0)
-        {
-            print("You win!");
         }
     }
 

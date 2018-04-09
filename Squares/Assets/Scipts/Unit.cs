@@ -53,6 +53,8 @@ public class Unit : MonoBehaviour {
 
     public int turns, maxTurns;
 
+    public int walked, attacked;
+
     public int attacks, maxAttacks;
 
     public int atk;
@@ -62,18 +64,15 @@ public class Unit : MonoBehaviour {
     [Range(-3, 3)]
     public int moral;
 
+    void Awake()
+    {
+        buffs = new BuffManager(this);
+    }
+
     // Use this for initialization
     void Start () {
-        buffs = new BuffManager(this);
-        //Assign this unit to team
-        if (tag == "Ally")
-        {
-            team = UnitManager.allies;
-        }
-        else if (tag == "Enemy")
-        {
-            team = UnitManager.enemies;
-        }
+        tileManager = TileManager.Instance;
+        maskGen = MaskGenerator.Instance;
     }
 	
 	// Update is called once per frame
@@ -147,6 +146,7 @@ public class Unit : MonoBehaviour {
     {
         StartCoroutine(MoveObjectAlongPath(pPath, animWalkSpeed));
         turns -= pPath.GetLength();
+        walked += pPath.GetLength();
     }
 
     #endregion
@@ -269,6 +269,7 @@ public class Unit : MonoBehaviour {
 
         pTarget.health -= damage;
         attacks -= 1;
+        attacked += 1;
         maskGen.GenerateMask(RoundManager.currentUnit);
     }
 

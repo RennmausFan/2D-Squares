@@ -17,7 +17,7 @@ public class TileManager : MonoBehaviour {
 
     public Tilemap arrowMap;
 
-    public Tilemap unitPositioning;
+    public Tilemap preparationMap;
 
     [SerializeField]
     private TileBase debugTile;
@@ -50,11 +50,29 @@ public class TileManager : MonoBehaviour {
        sizeY = baseMap.cellBounds.size.y;
     }
 
-    // Update is called once per frame
-    void Update () {
+    public static TileBase GetTileAtMousePos(Tilemap map)
+    {
+        //Get tile mouse is focusing on
+        Vector3 mousePos = Input.mousePosition;
+        Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
+        Vector3Int tilePos = map.WorldToCell(mousePosWorld);
+        TileBase tile = map.GetTile(tilePos);
+        return tile;
+    }
 
-        //Player cannot move if there is a unit moving (cuz of bugs)
-        if (unitIsMoving)
+    public static Vector3Int GetTilePosFromMouse(Tilemap map)
+    {
+        //Get tile mouse is focusing on
+        Vector3 mousePos = Input.mousePosition;
+        Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
+        Vector3Int tilePos = map.WorldToCell(mousePosWorld);
+        return tilePos;
+    }
+
+    // Update is called once per frame
+    void Update ()
+    {
+        if (unitIsMoving || RoundManager.state != GameCycle.Play)
         {
             return;
         }
@@ -156,6 +174,7 @@ public class TileManager : MonoBehaviour {
             if (CheckForUnit(tilePos))
             {
                 Unit unit = GetUnitAtPosition(tilePos);
+                print(unit);
                 GameObject go = StatsDisplayer.NewStatsDisplayer(statsDisplayer, unit);
                 unit.healthBar.SetActive(false);
                 lastStatsDisplayer = go;

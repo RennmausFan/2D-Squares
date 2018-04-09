@@ -2,10 +2,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Tilemaps;
 
-public enum TeamName { Enemies, Allies };
+public enum Team { Enemies, Allies }
+
+public enum GameCycle { Preparation, Play, End };
 
 public class RoundManager : MonoBehaviour {
+
+    [SerializeField]
+    private GameObject popUp;
 
     public static RoundManager Instance;
 
@@ -15,33 +21,47 @@ public class RoundManager : MonoBehaviour {
 
     public static Unit currentUnit;
 
-    [SerializeField]
-    private GameObject popUp;
+    public Team startTeam;
 
-    public TeamName startTeamName;
+    public static GameCycle state = GameCycle.Preparation;
+
+    public bool hasStarted;
+
+    //Prepartion
+    [SerializeField]
+    private TileBase prepEnemy;
+
+    [SerializeField]
+    private TileBase prepAlly;
+
+    private Team currentTeamPrep;
+    private int countAllies, countEnemies;
 
     void Awake()
     {
         Instance = this;
+        currentTeamPrep = startTeam;
+        countAllies = MapManager.currentMap.alliesTeamSize;
+        countEnemies = MapManager.currentMap.enemiesTeamSize;
     }
-
-    // Use this for initialization
-    void Start () {
-
+	
+    //Triggered when the game hits the state "play" the first time
+    void OnGameStart()
+    {
         //Setup currentTeam and currentUnit
-        if (startTeamName == TeamName.Allies)
+        if (startTeam == Team.Allies)
         {
             currentTeam = UnitManager.allies;
             currentUnit = UnitManager.allies[0];
         }
-        else if (startTeamName == TeamName.Enemies)
+        else if (startTeam == Team.Enemies)
         {
             currentTeam = UnitManager.enemies;
             currentUnit = UnitManager.enemies[0];
         }
         RoundStart();
-	}
-	
+    }
+
     //Start a round
     void RoundStart()
     {
@@ -65,6 +85,8 @@ public class RoundManager : MonoBehaviour {
         {
             unit.turns = unit.maxTurns;
             unit.attacks = unit.maxAttacks;
+            unit.attacked = 0;
+            unit.walked = 0;
             unit.buffs.OnRoundEnd();
         }
     }
@@ -90,7 +112,7 @@ public class RoundManager : MonoBehaviour {
     public void EndTurn()
     {
         //If currentTeam equals start team, the other team needs to take their turns
-        if (startTeamName == TeamName.Allies && currentTeam == UnitManager.allies || startTeamName == TeamName.Enemies && currentTeam == UnitManager.enemies)
+        if (startTeam == Team.Allies && currentTeam == UnitManager.allies || startTeam == Team.Enemies && currentTeam == UnitManager.enemies)
         {
             SwapTeams();
         }
@@ -101,8 +123,81 @@ public class RoundManager : MonoBehaviour {
         }
     }
 
-	// Update is called once per frame
-	void Update () {
+    //Depending in which state the game is do specific update tasks
+    void Update()
+    {
+        if (state == GameCycle.Preparation)
+        {
+            Update_Preparation();
+        }
+        if (state == GameCycle.Play)
+        {
+            Update_Play();
+        }
+        if (state == GameCycle.End)
+        {
+            Update_End();
+        }
+    }
+
+    void Update_Preparation()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            Tilemap map = TileManager.Instance.preparationMap;
+            TileBase tile = TileManager.GetTileAtMousePos(map);
+            Vector3Int tilePos = TileManager.GetTilePosFromMouse(map);
+            Vector3 worldTilePos = map.GetCellCenterWorld(tilePos);
+            if (currentTeamPrep == Team.Allies && tile == prepAlly && countAllies != 0)
+            {
+                int calc = MapManager.currentMap.alliesTeamSize - countAllies;
+                GameObject unit = Instantiate(UnitSelection.allySelection[calc], worldTilePos, Quaternion.identity);
+                unit.transform.parent = GameObject.FindWithTag("Units").transform;
+                map.SetTile(tilePos, null);
+                countAllies--;
+            }
+            else if (currentTeamPrep == Team.Enemies && tile == prepEnemy && countEnemies != 0)
+            {
+                int calc = MapManager.currentMap.enemiesTeamSize - countEnemies;
+                GameObject unit = Instantiate(UnitSelection.enemySelection[calc], worldTilePos, Quaternion.identity);
+                unit.transform.parent = GameObject.FindWithTag("Units").transform;
+                unit.tag = "Enemy";
+                map.SetTile(tilePos, null);
+                countEnemies--;
+            }
+        }
+        if (countAllies == 0)
+        {
+            if (startTeam == Team.Allies)
+            {
+                currentTeamPrep = Team.Enemies;
+            }
+            else
+            {
+                state = GameCycle.Play;
+            }
+        }
+        if (countEnemies == 0)
+        {
+            if (startTeam == Team.Enemies)
+            {
+                currentTeamPrep = Team.Allies;
+            }
+            else
+            {
+                state = GameCycle.Play;
+            }
+        }
+    }
+
+    void Update_Play()
+    {
+        if (!hasStarted)
+        {
+            UnitManager.OnPlay();
+            OnGameStart();
+            hasStarted = true;
+        }
 
         //Highlight current unit and reset the highlight for every other unit
         foreach (Unit unit in UnitManager.allUnits)
@@ -134,7 +229,7 @@ public class RoundManager : MonoBehaviour {
         if (!UnitManager.TeamCanAct(currentTeam))
         {
             //If currentTeam equals start team, the other team needs to take their turns
-            if(startTeamName == TeamName.Allies && currentTeam == UnitManager.allies || startTeamName == TeamName.Enemies && currentTeam == UnitManager.enemies)
+            if (startTeam == Team.Allies && currentTeam == UnitManager.allies || startTeam == Team.Enemies && currentTeam == UnitManager.enemies)
             {
                 SwapTeams();
             }
@@ -144,5 +239,10 @@ public class RoundManager : MonoBehaviour {
                 RoundStart();
             }
         }
+    }
+
+    void Update_End()
+    {
+
     }
 }
