@@ -16,6 +16,12 @@ public enum CharClasses
     Swordsman
 };
 
+[System.Serializable]
+public class AttackPattern
+{
+    public List<Vector3Int> positions = new List<Vector3Int>();
+}
+
 public class Unit : MonoBehaviour {
 
     public BuffManager buffs;
@@ -31,25 +37,40 @@ public class Unit : MonoBehaviour {
     [SerializeField]
     private GameObject selection;
 
-    [Header("Class Attributes")]
-    public TileBase[] blockingTiles;
+    [SerializeField]
+    private SpriteRenderer spriteRend;
 
-    //Attack positions as Vector3Int relative to this unit
-    public Vector3Int[] attackPositions;
+    [SerializeField]
+    private Animator anim;
 
+    [HideInInspector]
+    public Team teamName;
+    [HideInInspector]
     public List<Unit> team = new List<Unit>();
 
-    public bool canAct;
+    [Header("General")]
+
+    public Color cantActColor;
+
+    public bool canAct = true;
     public bool isDead;
 
     public float animWalkSpeed;
 
+    [Header("Class Attributes")]
+
+    public CharClasses unitClass;
+
+    public TileBase[] blockingTiles;
+    public AttackPattern[] attackPattern;
+
+    public bool canMoveAfterAttack = false;
+
     public string describtion;
 
     [Header("Stats")]
-    public CharClasses unitClass;
-
-    public int health, maxHealth;
+    public int health;
+    public int maxHealth;
 
     public int turns, maxTurns;
 
@@ -84,15 +105,27 @@ public class Unit : MonoBehaviour {
             isDead = true;
             Die();
         }
-        
-        //Set can act
-        if (turns <= 0 && attacks <= 0)
+
+        //Cant act --> color change
+        if (!canAct && team == RoundManager.currentTeam)
         {
-            canAct = false;
+            if (anim != null)
+            {
+                anim.enabled = false;
+                spriteRend.color = cantActColor;
+            }
+            else
+            {
+                spriteRend.color = cantActColor;
+            }
         }
         else
         {
-            canAct = true;
+            if (anim != null)
+            {
+                anim.enabled = true;
+            }
+            spriteRend.color = Color.white;
         }
 
         //Moral De-/Buffs
@@ -140,7 +173,18 @@ public class Unit : MonoBehaviour {
         }
     }
 
-    #region Movement
+    public void SetCanAct()
+    {
+        if (turns == 0)
+        {
+            if (!MaskGenerator.Instance.CanAttack(this))
+            {
+                canAct = false;
+                return;
+            }
+        }
+        canAct = true;
+    }
 
     public void WalkPath(Path pPath)
     {
@@ -149,14 +193,12 @@ public class Unit : MonoBehaviour {
         walked += pPath.GetLength();
     }
 
-    #endregion
-
     #region Util
 
     //Move this unit over time
     IEnumerator MoveObject(Vector3 start, Vector3 target, float overTime)
     {
-        TileManager.unitIsMoving = true;
+        PlayerActions.unitIsMoving = true;
         float startTime = Time.time;
         while (Time.time < startTime + overTime)
         {
@@ -164,15 +206,15 @@ public class Unit : MonoBehaviour {
             yield return null;
         }
         transform.position = target;
-        TileManager.unitIsMoving = false;
+        PlayerActions.unitIsMoving = false;
         //Generate new mask after unit is has moved
-        maskGen.GenerateMask(RoundManager.currentUnit);
+        maskGen.GenerateMasks(RoundManager.currentUnit);
     }
 
     //Move this unit over time
     IEnumerator MoveObjectAlongPath(Path pPath, float overTime)
     {
-        TileManager.unitIsMoving = true;
+        PlayerActions.unitIsMoving = true;
         //Move on every subPath
         foreach(Vector3Int v in pPath.moves)
         {
@@ -186,10 +228,11 @@ public class Unit : MonoBehaviour {
             }
             transform.position = destination;
         }
-        TileManager.unitIsMoving = false;
+        PlayerActions.unitIsMoving = false;
         tileManager.arrowMap.ClearAllTiles();
         //Generate new mask after unit is has moved
-        maskGen.GenerateMask(RoundManager.currentUnit);
+        maskGen.GenerateMasks(RoundManager.currentUnit);
+        SetCanAct();
     }
 
     //Return true if Unit is allowed to stand on the tile at the given position
@@ -241,6 +284,10 @@ public class Unit : MonoBehaviour {
         {
             GetComponent<Animator>().Play("DeathFade");
         }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
     //Triggered if health equals zero
@@ -249,28 +296,41 @@ public class Unit : MonoBehaviour {
         Destroy(gameObject);
     }
 
+    public void Attack(Vector3Int pos)
+    {
+        List<Vector3Int> pattern = GetPartnerAP(pos);
+        foreach (Vector3Int attackDir in pattern)
+        {
+            Vector3Int checkPos = GetPos() + attackDir;
+            if (tileManager.CheckForUnit(checkPos))
+            {
+                Attack(tileManager.GetUnitAtPosition(checkPos));
+            }
+        }
+        attacks -= 1;
+        attacked += 1;
+        if (!canMoveAfterAttack)
+        {
+            turns = 0;
+            walked = maxTurns;
+        }
+        MaskGenerator.Instance.GenerateMasks(RoundManager.currentUnit);
+        TileManager.Instance.arrowMap.ClearAllTiles();
+        SetCanAct();
+    }
+
     //Attack other unit (calculate and apply damage)
-    public void Attack(Unit pTarget)
+    void Attack(Unit pTarget)
     {
         if(attacks <= 0)
         {
             return;
         }
-        int damage = atk - pTarget.def;
-        if (damage <= 0)
-        {
-            damage = 1;
-        }
-
         if (pTarget.GetComponent<Animator>() != null)
         {
             pTarget.GetComponent<Animator>().Play("TakeDamage");
         }
-
-        pTarget.health -= damage;
-        attacks -= 1;
-        attacked += 1;
-        maskGen.GenerateMask(RoundManager.currentUnit);
+        pTarget.health -= atk;
     }
 
     //Activate selection
@@ -283,5 +343,36 @@ public class Unit : MonoBehaviour {
     public void ResetHighlight()
     {
         selection.SetActive(false);
+    }
+
+    //Gets all attackable positions
+    public List<Vector3Int> GetAttackPositions()
+    {
+        List<Vector3Int> positions = new List<Vector3Int>();
+        foreach (AttackPattern ap in attackPattern)
+        {
+            foreach (Vector3Int v in ap.positions)
+            {
+                positions.Add(v);
+            }
+        }
+        return positions;
+    }
+
+    public List<Vector3Int> GetPartnerAP(Vector3Int pos)
+    {
+        List<Vector3Int> positions = new List<Vector3Int>();
+        foreach (AttackPattern ap in attackPattern)
+        {
+            foreach (Vector3Int v in ap.positions)
+            {
+                Vector3Int x = pos - GetPos();
+                if (v == x)
+                {
+                    return ap.positions;
+                }
+            }
+        }
+        return null;
     }
 }

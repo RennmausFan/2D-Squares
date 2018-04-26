@@ -18,6 +18,9 @@ public class UnitSelection : MonoBehaviour {
     [SerializeField]
     private GameObject previewSelection;
 
+    [SerializeField]
+    private GameObject shogun;
+
     public static List<GameObject> allySelection = new List<GameObject>();
     public static List<GameObject> enemySelection = new List<GameObject>();
 
@@ -35,13 +38,28 @@ public class UnitSelection : MonoBehaviour {
 
     public Vector3 origin, offset;
 
+    public bool isDebug;
+
     // Use this for initialization
     void Awake ()
     {
+        if (isDebug) { DebugSetup(); }
+
         alliesCap = MapManager.currentMap.alliesTeamSize;
         enemiesCap = MapManager.currentMap.enemiesTeamSize;
 
+        if (alliesCap > 0)
+        {
+            allySelection.Add(shogun);
+        }
+        if (enemiesCap > 0)
+        {
+            enemySelection.Add(shogun);
+        }
+
         currentSelection = allySelection;
+
+        PreviewTeam();
 	}
 	
 	// Update is called once per frame
@@ -142,6 +160,27 @@ public class UnitSelection : MonoBehaviour {
         }
     }
     
+    public void DebugSetup()
+    {
+        allySelection.Add(unitPrefabs[5]);
+        allySelection.Add(unitPrefabs[0]);
+        allySelection.Add(unitPrefabs[0]);
+        allySelection.Add(unitPrefabs[4]);
+        allySelection.Add(unitPrefabs[4]);
+        allySelection.Add(unitPrefabs[3]);
+        allySelection.Add(unitPrefabs[3]);
+        allySelection.Add(unitPrefabs[3]);
+        enemySelection.Add(unitPrefabs[5]);
+        enemySelection.Add(unitPrefabs[0]);
+        enemySelection.Add(unitPrefabs[0]);
+        enemySelection.Add(unitPrefabs[4]);
+        enemySelection.Add(unitPrefabs[4]);
+        enemySelection.Add(unitPrefabs[3]);
+        enemySelection.Add(unitPrefabs[3]);
+        enemySelection.Add(unitPrefabs[3]);
+        Done();
+    }
+
     public void PreviewTeam()
     {
         //Destroy all child objects of previewUnits

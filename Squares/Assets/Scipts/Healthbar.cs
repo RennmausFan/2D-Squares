@@ -9,7 +9,8 @@ public class Healthbar : MonoBehaviour
 
     public float gapScale;
 
-    public Color fullColor;
+    public Color fullColor_Ally;
+    public Color fullColor_Enemy;
     public Color emptyColor;
 
     [SerializeField]
@@ -63,6 +64,16 @@ public class Healthbar : MonoBehaviour
             //Parent tile and add it to the array
             tileRect.SetParent(transform, false);
             tiles[i] = newTile;
+
+            //Color
+            if (unit.teamName == Team.Allies)
+            {
+                tiles[i].GetComponent<Image>().color = fullColor_Ally;
+            }
+            else
+            {
+                tiles[i].GetComponent<Image>().color = fullColor_Enemy;
+            }
         }
 
     }
@@ -78,7 +89,14 @@ public class Healthbar : MonoBehaviour
         }
         for (int i = 0; i < health; i++)
         {
-            tiles[i].GetComponent<Image>().color = fullColor;
+            if (unit.teamName == Team.Allies)
+            {
+                tiles[i].GetComponent<Image>().color = fullColor_Ally;
+            }
+            else
+            {
+                tiles[i].GetComponent<Image>().color = fullColor_Enemy;
+            }
         }
         for (int p = health; p < tiles.Length; p++)
         {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Tilemaps;
+using UnityEngine.SceneManagement;
 
 public enum Team { Enemies, Allies }
 
@@ -24,8 +25,6 @@ public class RoundManager : MonoBehaviour {
     public Team startTeam;
 
     public static GameCycle state = GameCycle.Preparation;
-
-    public bool hasStarted;
 
     //Prepartion
     [SerializeField]
@@ -59,6 +58,7 @@ public class RoundManager : MonoBehaviour {
             currentTeam = UnitManager.enemies;
             currentUnit = UnitManager.enemies[0];
         }
+        //CameraController.Instance.MoveCameraTo(currentUnit.transform.position);
         RoundStart();
     }
 
@@ -67,9 +67,8 @@ public class RoundManager : MonoBehaviour {
     {
         round++;
         print("Round: " + round + " start!");
-        GameObject go = Instantiate(popUp, Vector3.zero, Quaternion.identity);
-        go.GetComponentInChildren<Text>().text = "ROUND " + round + " START!";
-        MaskGenerator.Instance.GenerateMask(currentUnit);
+        PopUp.SpawnPopUp(popUp, "ROUND " + round + " START!", 1.5f, Color.red);
+        MaskGenerator.Instance.GenerateMasks(currentUnit);
     }
 
     //End a round
@@ -88,29 +87,38 @@ public class RoundManager : MonoBehaviour {
             unit.attacked = 0;
             unit.walked = 0;
             unit.buffs.OnRoundEnd();
+            unit.canAct = true;
         }
     }
 
     //Swap teams
-    private void SwapTeams()
+    public void SwapTeams()
     {
         if (currentTeam == UnitManager.allies)
         {
             currentTeam = UnitManager.enemies;
             currentUnit = UnitManager.enemies[0];
-            MaskGenerator.Instance.GenerateMask(currentUnit);
+            MaskGenerator.Instance.GenerateMasks(currentUnit);
         }
         else
         {
             currentTeam = UnitManager.allies;
             currentUnit = UnitManager.allies[0];
-            MaskGenerator.Instance.GenerateMask(currentUnit);
+            MaskGenerator.Instance.GenerateMasks(currentUnit); 
         }
+        if (UIManager.showDangerZone)
+        {
+            MaskGenerator.Instance.GenerateDangerZone();
+        }
+        CameraController.Instance.MoveCameraTo(currentUnit.transform.position);
     }
 
-    //Method triggered by "Turn over" button
     public void EndTurn()
     {
+        if (CameraController.Instance.isMoving || state != GameCycle.Play)
+        {
+            return;
+        }
         //If currentTeam equals start team, the other team needs to take their turns
         if (startTeam == Team.Allies && currentTeam == UnitManager.allies || startTeam == Team.Enemies && currentTeam == UnitManager.enemies)
         {
@@ -132,7 +140,28 @@ public class RoundManager : MonoBehaviour {
         }
         if (state == GameCycle.Play)
         {
-            Update_Play();
+            //Game ends
+            if (UnitManager.enemies.Count == 0)
+            {
+                print("Allies won!");
+                state = GameCycle.End;
+            }
+            else if (UnitManager.allies.Count == 0)
+            {
+                print("Enemies won!");
+                state = GameCycle.End;
+            }
+            else if (UnitManager.allyShogun.isDead)
+            {
+                print("Enemies won!");
+                state = GameCycle.End;
+            }
+            else if (UnitManager.enemyShogun.isDead)
+            {
+                print("Allies won!");
+                state = GameCycle.End;
+            }
+            if (state != GameCycle.End) { Update_Play(); }
         }
         if (state == GameCycle.End)
         {
@@ -144,24 +173,22 @@ public class RoundManager : MonoBehaviour {
     {
         if (Input.GetMouseButtonDown(0))
         {
-            Tilemap map = TileManager.Instance.preparationMap;
-            TileBase tile = TileManager.GetTileAtMousePos(map);
-            Vector3Int tilePos = TileManager.GetTilePosFromMouse(map);
+            Tilemap map = TileManager.Instance.prepMap;
+            Vector3Int tilePos = TileManager.mousePos;
             Vector3 worldTilePos = map.GetCellCenterWorld(tilePos);
+            TileBase tile = TileManager.Instance.prepMap.GetTile(tilePos);
+
             if (currentTeamPrep == Team.Allies && tile == prepAlly && countAllies != 0)
             {
                 int calc = MapManager.currentMap.alliesTeamSize - countAllies;
-                GameObject unit = Instantiate(UnitSelection.allySelection[calc], worldTilePos, Quaternion.identity);
-                unit.transform.parent = GameObject.FindWithTag("Units").transform;
+                UnitManager.SpawnUnit(UnitSelection.allySelection[calc], worldTilePos, Team.Allies);
                 map.SetTile(tilePos, null);
                 countAllies--;
             }
             else if (currentTeamPrep == Team.Enemies && tile == prepEnemy && countEnemies != 0)
             {
                 int calc = MapManager.currentMap.enemiesTeamSize - countEnemies;
-                GameObject unit = Instantiate(UnitSelection.enemySelection[calc], worldTilePos, Quaternion.identity);
-                unit.transform.parent = GameObject.FindWithTag("Units").transform;
-                unit.tag = "Enemy";
+                UnitManager.SpawnUnit(UnitSelection.enemySelection[calc], worldTilePos, Team.Enemies);
                 map.SetTile(tilePos, null);
                 countEnemies--;
             }
@@ -175,6 +202,8 @@ public class RoundManager : MonoBehaviour {
             else
             {
                 state = GameCycle.Play;
+                UnitManager.OnPlay();
+                OnGameStart();
             }
         }
         if (countEnemies == 0)
@@ -186,19 +215,14 @@ public class RoundManager : MonoBehaviour {
             else
             {
                 state = GameCycle.Play;
+                UnitManager.OnPlay();
+                OnGameStart();
             }
         }
     }
 
     void Update_Play()
     {
-        if (!hasStarted)
-        {
-            UnitManager.OnPlay();
-            OnGameStart();
-            hasStarted = true;
-        }
-
         //Highlight current unit and reset the highlight for every other unit
         foreach (Unit unit in UnitManager.allUnits)
         {
@@ -220,6 +244,7 @@ public class RoundManager : MonoBehaviour {
                 if (unit.canAct)
                 {
                     currentUnit = unit;
+                    MaskGenerator.Instance.GenerateMasks(currentUnit);
                     break;
                 }
             }
@@ -243,6 +268,6 @@ public class RoundManager : MonoBehaviour {
 
     void Update_End()
     {
-
+        SceneManager.LoadScene("mainmenu");
     }
 }

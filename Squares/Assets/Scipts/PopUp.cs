@@ -29,4 +29,13 @@ public class PopUp : MonoBehaviour {
         textComp.color = newColor;
         timer += Time.deltaTime;
     }
+
+    public static void SpawnPopUp(GameObject prefab, string text, float duration, Color color)
+    {
+        GameObject go = Instantiate(prefab, Vector3.zero, Quaternion.identity);
+        PopUp script = go.GetComponentInChildren<PopUp>();
+        script.textComp.text = text;
+        script.textComp.color = color;
+        script.duration = duration;
+    }
 }

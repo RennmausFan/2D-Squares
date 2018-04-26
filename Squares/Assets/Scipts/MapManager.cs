@@ -32,7 +32,7 @@ public static class MapManager{
     static MapManager()
     {
         //Maps
-        maps.Add(new MapInformation("Empty Map", "map_0", 0, 0));
+        maps.Add(new MapInformation("Empty Map", "map_0", 8, 8));
         maps.Add(new MapInformation("River Islands", "map_1", 4, 3));
         maps.Add(new MapInformation("BattleField", "map_2", 6, 6));
         maps.Add(new MapInformation("Rocky Valley", "map_3", 6, 6));

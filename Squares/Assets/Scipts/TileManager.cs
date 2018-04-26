@@ -17,180 +17,36 @@ public class TileManager : MonoBehaviour {
 
     public Tilemap arrowMap;
 
-    public Tilemap preparationMap;
+    public Tilemap prepMap;
 
-    [SerializeField]
-    private TileBase debugTile;
+    public Tilemap pinkMaskMap;
 
-    private GameObject lastStatsDisplayer;
-    private Unit lastUnit;
-
-    private Path currentAttackPath;
-
-    [SerializeField]
-    private GameObject statsDisplayer;
+    public Tilemap purpleMaskMap;
 
     public TileBase greenMask;
     public TileBase redMask;
+    public TileBase pinkMask;
+    public TileBase purpleMask;
 
-    public static bool unitIsMoving;
-
-    public int sizeX, sizeY;
-
-    Vector3Int lastTilePos = new Vector3Int(10000, 10000, 10000);
+    public static Vector3Int mousePos;
 
     void Awake()
     {
         Instance = this;
     }
 
-    void Start () {
-       //Get bounds from base map in cell size
-       sizeX = baseMap.cellBounds.size.x;
-       sizeY = baseMap.cellBounds.size.y;
-    }
-
-    public static TileBase GetTileAtMousePos(Tilemap map)
+    void Update ()
     {
-        //Get tile mouse is focusing on
-        Vector3 mousePos = Input.mousePosition;
-        Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
-        Vector3Int tilePos = map.WorldToCell(mousePosWorld);
-        TileBase tile = map.GetTile(tilePos);
-        return tile;
+        mousePos = GetMouseCellPos(baseMap);
     }
-
-    public static Vector3Int GetTilePosFromMouse(Tilemap map)
+    
+    //Converts the mouse pos in cell space
+    public static Vector3Int GetMouseCellPos(Tilemap map)
     {
-        //Get tile mouse is focusing on
         Vector3 mousePos = Input.mousePosition;
         Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
         Vector3Int tilePos = map.WorldToCell(mousePosWorld);
         return tilePos;
-    }
-
-    // Update is called once per frame
-    void Update ()
-    {
-        if (unitIsMoving || RoundManager.state != GameCycle.Play)
-        {
-            return;
-        }
-
-        //Get tile mouse is focusing on
-        Vector3 mousePos = Input.mousePosition;
-        Vector3 mousePosWorld = Camera.main.ScreenToWorldPoint(mousePos);
-        Vector3Int tilePos = masksMap.WorldToCell(mousePosWorld);
-
-        Unit currentUnit = RoundManager.currentUnit;
-
-        #region Move, Attack and Select Units
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (masksMap.GetTile(tilePos) == greenMask)
-            {
-                currentUnit.WalkPath(PathEngine.Instance.GetPath(currentUnit, tilePos));
-            }
-            else if (masksMap.GetTile(tilePos) == redMask)
-            {
-                //Check if unit is in range;
-                Vector3Int[] attackPositions = currentUnit.attackPositions;
-                bool canAttack = false;
-                if (attackPositions == null)
-                {
-                    return;
-                }
-                foreach (Vector3Int v in attackPositions)
-                {
-                    if (currentUnit.GetPos() + v == tilePos)
-                    {
-                        currentUnit.Attack(GetUnitAtPosition(tilePos));
-                        canAttack = true;
-                    }
-                }
-                if (currentAttackPath != null && !canAttack)
-                {
-                    currentUnit.WalkPath(currentAttackPath);
-                }
-            }
-            else if (CheckForUnit(tilePos))
-            {
-                Unit unitAtPos = GetUnitAtPosition(tilePos);
-                if (unitAtPos.team == RoundManager.currentTeam)
-                {
-                    RoundManager.currentUnit = unitAtPos;
-                    currentUnit = unitAtPos;
-                    MaskGenerator.Instance.GenerateMask(currentUnit);
-                }
-            }
-        }
-        #endregion
-
-        #region Display Path and Spawn StatsDisplayer
-        if (tilePos != lastTilePos)
-        {
-            lastTilePos = tilePos;
-            //Reset last unit
-            if (lastUnit != null && !lastUnit.isDead)
-            {
-                lastUnit.healthBar.SetActive(true);
-            }
-
-            //Generate Path to location
-            if (masksMap.GetTile(tilePos) == greenMask)
-            {
-                Path path = PathEngine.Instance.GetPath(currentUnit, tilePos);
-                if (path != null)
-                {
-                    PathEngine.Instance.DisplayPath(path, currentUnit);
-                }
-            }
-
-            //Generate Path to attack position
-            if (masksMap.GetTile(tilePos) == redMask)
-            {
-                Vector3Int[] attackPositions = currentUnit.attackPositions;
-                if (attackPositions == null)
-                {
-                    return;
-                }
-                foreach (Vector3Int v in attackPositions)
-                {
-                    Path attackPath = PathEngine.Instance.GetPath(currentUnit, tilePos + v);
-                    if (attackPath != null && masksMap.GetTile(tilePos + v))
-                    {
-                        PathEngine.Instance.DisplayPath(attackPath, currentUnit);
-                        currentAttackPath = attackPath;
-                    }
-                }
-            }
-
-            //Destroy lastStatsDisplayer if tilePos changes
-            if (lastStatsDisplayer != null)
-            {
-                Destroy(lastStatsDisplayer);
-            }
-            //Spawn statsdisplayer if unit is on tile
-            if (CheckForUnit(tilePos))
-            {
-                Unit unit = GetUnitAtPosition(tilePos);
-                print(unit);
-                GameObject go = StatsDisplayer.NewStatsDisplayer(statsDisplayer, unit);
-                unit.healthBar.SetActive(false);
-                lastStatsDisplayer = go;
-                lastUnit = unit;
-            }
-        }
-        #endregion
-
-        //Destroy lastStatsDisplayer if unit is dead
-        if (lastUnit != null && lastStatsDisplayer != null)
-        {
-            if (lastUnit.isDead)
-            {
-                Destroy(lastStatsDisplayer);
-            }
-        }
     }
 
     //Get if at a position is a specific tile
@@ -212,6 +68,18 @@ public class TileManager : MonoBehaviour {
         foreach (TileBase tile in pTiles)
         {
             if (tile == tileToCompare)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool ArrayContainsTile(TileBase tile, TileBase[] tiles)
+    {
+        foreach (TileBase t in tiles)
+        {
+            if (tile == t)
             {
                 return true;
             }
