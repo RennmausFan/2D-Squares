@@ -24,6 +24,8 @@ public class RoundManager : MonoBehaviour {
 
     public Team startTeam;
 
+    private bool prepStarted = true;
+
     public static GameCycle state = GameCycle.Preparation;
 
     //Prepartion
@@ -43,7 +45,21 @@ public class RoundManager : MonoBehaviour {
         countAllies = MapManager.currentMap.alliesTeamSize;
         countEnemies = MapManager.currentMap.enemiesTeamSize;
     }
-	
+
+    void CalcFogMask_Prep()
+    {
+        if (currentTeamPrep == Team.Allies)
+        {
+            currentTeam = UnitManager.allies;
+            MaskGenerator.Instance.GenerateFog(currentTeam);
+        }
+        else
+        {
+            currentTeam = UnitManager.enemies;
+            MaskGenerator.Instance.GenerateFog(currentTeam);
+        }
+    }
+
     //Triggered when the game hits the state "play" the first time
     void OnGameStart()
     {
@@ -69,6 +85,7 @@ public class RoundManager : MonoBehaviour {
         print("Round: " + round + " start!");
         PopUp.SpawnPopUp(popUp, "ROUND " + round + " START!", 1.5f, Color.red);
         MaskGenerator.Instance.GenerateMasks(currentUnit);
+        MaskGenerator.Instance.GenerateFog(currentTeam);
     }
 
     //End a round
@@ -94,6 +111,7 @@ public class RoundManager : MonoBehaviour {
     //Swap teams
     public void SwapTeams()
     {
+        print("Switch Teams!");
         if (currentTeam == UnitManager.allies)
         {
             currentTeam = UnitManager.enemies;
@@ -110,9 +128,12 @@ public class RoundManager : MonoBehaviour {
         {
             MaskGenerator.Instance.GenerateDangerZone();
         }
+        CursorController.Instance.MoveToCurrentPlayer();
+        MaskGenerator.Instance.GenerateFog(currentTeam);
         CameraController.Instance.MoveCameraTo(currentUnit.transform.position);
     }
 
+    //Executed by Button Click
     public void EndTurn()
     {
         if (CameraController.Instance.isMoving || state != GameCycle.Play)
@@ -136,6 +157,12 @@ public class RoundManager : MonoBehaviour {
     {
         if (state == GameCycle.Preparation)
         {
+            if (prepStarted)
+            {
+                CalcFogMask_Prep();
+                PopUp.SpawnPopUp(popUp, "Place your units!", 1f, Color.yellow);
+            }
+            prepStarted = false;
             Update_Preparation();
         }
         if (state == GameCycle.Play)
@@ -184,6 +211,7 @@ public class RoundManager : MonoBehaviour {
                 UnitManager.SpawnUnit(UnitSelection.allySelection[calc], worldTilePos, Team.Allies);
                 map.SetTile(tilePos, null);
                 countAllies--;
+                CalcFogMask_Prep();
             }
             else if (currentTeamPrep == Team.Enemies && tile == prepEnemy && countEnemies != 0)
             {
@@ -191,6 +219,7 @@ public class RoundManager : MonoBehaviour {
                 UnitManager.SpawnUnit(UnitSelection.enemySelection[calc], worldTilePos, Team.Enemies);
                 map.SetTile(tilePos, null);
                 countEnemies--;
+                CalcFogMask_Prep();
             }
         }
         if (countAllies == 0)
@@ -198,6 +227,8 @@ public class RoundManager : MonoBehaviour {
             if (startTeam == Team.Allies)
             {
                 currentTeamPrep = Team.Enemies;
+                CalcFogMask_Prep();
+                PopUp.SpawnPopUp(popUp, "Place your units!", 1f, Color.yellow);
             }
             else
             {
@@ -211,6 +242,8 @@ public class RoundManager : MonoBehaviour {
             if (startTeam == Team.Enemies)
             {
                 currentTeamPrep = Team.Allies;
+                CalcFogMask_Prep();
+                PopUp.SpawnPopUp(popUp, "Place your units!", 1f, Color.yellow);
             }
             else
             {
@@ -223,19 +256,6 @@ public class RoundManager : MonoBehaviour {
 
     void Update_Play()
     {
-        //Highlight current unit and reset the highlight for every other unit
-        foreach (Unit unit in UnitManager.allUnits)
-        {
-            if (currentUnit == unit)
-            {
-                unit.Highlight();
-            }
-            else
-            {
-                unit.ResetHighlight();
-            }
-        }
-
         //If currentUnit cant act select a new Unit from that team that can act (if theres one)
         if (!currentUnit.canAct)
         {
@@ -244,6 +264,7 @@ public class RoundManager : MonoBehaviour {
                 if (unit.canAct)
                 {
                     currentUnit = unit;
+                    CursorController.Instance.MoveToCurrentPlayer();
                     MaskGenerator.Instance.GenerateMasks(currentUnit);
                     break;
                 }

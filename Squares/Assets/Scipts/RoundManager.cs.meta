@@ -5,7 +5,10 @@ licenseType: Free
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - popUp: {fileID: 1048886619606950, guid: 4538e5c0efd5a0d4aa903ad785588dcb, type: 2}
+  - prepEnemy: {instanceID: 0}
+  - prepAlly: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

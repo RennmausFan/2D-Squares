@@ -13,7 +13,8 @@ public class UnitManager : MonoBehaviour {
     public static Unit allyShogun;
 
     // Use this for initialization
-    public static void OnPlay() {
+    public static void OnPlay()
+    {
         /*
         allUnits.Clear();
         allies.Clear();
@@ -46,6 +47,14 @@ public class UnitManager : MonoBehaviour {
             
         }
         */
+    }
+
+    public static void SetIsVisibleAllUnits()
+    {
+        foreach(Unit u in allUnits)
+        {
+            u.SetIsVisible();
+        }
     }
 
     public static void SpawnUnit(GameObject prefab, Vector3 pos, Team team)

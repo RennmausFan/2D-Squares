@@ -7,26 +7,24 @@ public class TileManager : MonoBehaviour {
 
     public static TileManager Instance;
 
+    [Header("Tilemaps")]
     public Tilemap baseMap;
-
     public Tilemap unitsMap;
-
     public Tilemap masksMap;
-
     public Tilemap overlayMap;
-
     public Tilemap arrowMap;
-
     public Tilemap prepMap;
-
     public Tilemap pinkMaskMap;
-
     public Tilemap purpleMaskMap;
+    public Tilemap fogAllies;
+    public Tilemap fogEnemies;
 
+    [Header("Tiles")]
     public TileBase greenMask;
     public TileBase redMask;
     public TileBase pinkMask;
     public TileBase purpleMask;
+    public TileBase fog;
 
     public static Vector3Int mousePos;
 
@@ -60,6 +58,17 @@ public class TileManager : MonoBehaviour {
         return false;
     }
 
+    //Get if at a position is a specific tile
+    public bool CheckForTile(Vector3Int pPos, TileBase pTile, Tilemap pMap)
+    {
+        TileBase tileToCompare = pMap.GetTile(pPos);
+        if (pTile == tileToCompare)
+        {
+            return true;
+        }
+        return false;
+    }
+
     //Get if at a position is one of the specific tiles
     public bool CheckForTiles(Vector3Int pPos, TileBase[] pTiles)
     {
@@ -75,6 +84,22 @@ public class TileManager : MonoBehaviour {
         return false;
     }
 
+    //Get if at a position is one of the specific tiles
+    public bool CheckForTiles(Vector3Int pPos, TileBase[] pTiles, Tilemap pMap)
+    {
+        TileBase tileToCompare = pMap.GetTile(pPos);
+
+        foreach (TileBase tile in pTiles)
+        {
+            if (tile == tileToCompare)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //Search if tile exists in an TileBase-Array
     public static bool ArrayContainsTile(TileBase tile, TileBase[] tiles)
     {
         foreach (TileBase t in tiles)
@@ -113,5 +138,53 @@ public class TileManager : MonoBehaviour {
             }
         }
         return null;
+    }
+
+    //Fill up the current fog layer with fog (based on the tiles on the baseMap)
+    public void SetupFogBaseLayer(Team pTeam)
+    {
+        //Select fog map
+        Tilemap fogmap;
+        if (pTeam == Team.Allies)
+        {
+            fogmap = fogAllies;
+        }
+        else
+        {
+            fogmap = fogEnemies;
+        }
+        //Compress baseMap and get allTiles
+        baseMap.CompressBounds();
+        TileBase[] allTiles = baseMap.GetTilesBlock(baseMap.cellBounds);
+        //Copy setting of the baseMap to fog layer
+        fogmap.size = baseMap.size;
+        fogmap.origin = baseMap.origin;
+        fogmap.ResizeBounds();
+        //Set fog for every tile (that is not null)
+        for (int i = 0; i < allTiles.Length; i++)
+        {
+            if (allTiles[i] != null)
+            {
+                allTiles[i] = fog;
+            }
+        }
+        //Apply tiles to fog map
+        fogmap.SetTilesBlock(fogmap.cellBounds, allTiles);
+    }
+
+    //Fill a tilemap with a specific tile
+    public static void FillTileMap(Tilemap pTilemap, TileBase pTile, bool pReplaceNull)
+    {
+        TileBase[] allTiles = pTilemap.GetTilesBlock(pTilemap.cellBounds);
+        for (int i=0; i<allTiles.Length; i++)
+        {
+            //If ReplaceNull == false, null tiles are ignored 
+            if (!pReplaceNull && allTiles[i] == null)
+            {
+                return;
+            }
+            allTiles[i] = pTile;
+        }
+        pTilemap.SetTilesBlock(pTilemap.cellBounds, allTiles);
     }
 }

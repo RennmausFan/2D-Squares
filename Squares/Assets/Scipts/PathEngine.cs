@@ -39,6 +39,7 @@ public class Path
 
     public List<Vector3Int> moves = new List<Vector3Int>();
     public Vector3Int startpoint;
+    public Vector3Int endpoint;
 
     public Path(Vector3Int pStartpoint)
     {
@@ -49,6 +50,7 @@ public class Path
     public void Add(Vector3Int pNewMove)
     {
         moves.Add(pNewMove);
+        CalcEndPoint();
     }
 
     //Returns the length of all vectors in queue
@@ -273,6 +275,18 @@ public class Path
         }
         temp += "Length: " + GetLength();
         MonoBehaviour.print(temp);
+    }
+
+    //Gets the destination as a Vector3Int
+    public Vector3Int CalcEndPoint()
+    {
+        Vector3Int _endpoint = startpoint;
+        foreach (Vector3Int v in moves)
+        {
+            _endpoint += v;
+        }
+        endpoint = _endpoint;
+        return endpoint;
     }
 
     public void AddFirst(Vector3Int pMove)

@@ -48,6 +48,12 @@ public class Unit : MonoBehaviour {
     [HideInInspector]
     public List<Unit> team = new List<Unit>();
 
+    [Header("Fog Mask")]
+    public int sightRange = 3;
+    bool canBeSeen_Allies;
+    bool canBeSeen_Enemies;
+    public bool isVisible;
+
     [Header("General")]
 
     public Color cantActColor;
@@ -88,16 +94,16 @@ public class Unit : MonoBehaviour {
     void Awake()
     {
         buffs = new BuffManager(this);
+        tileManager = TileManager.Instance;
+        maskGen = MaskGenerator.Instance;
     }
 
     // Use this for initialization
     void Start () {
-        tileManager = TileManager.Instance;
-        maskGen = MaskGenerator.Instance;
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    // Update is called once per frame
+    void Update () {
 
         //Check health
         if (health <= 0 && !isDead)
@@ -128,6 +134,7 @@ public class Unit : MonoBehaviour {
             spriteRend.color = Color.white;
         }
 
+        /**
         //Moral De-/Buffs
         switch (moral)
         {
@@ -171,6 +178,62 @@ public class Unit : MonoBehaviour {
                 buffs.RemoveBuff(Buff.HugeMoralDebuff);
                 break;
         }
+        **/
+    }
+
+    public void SetIsVisible()
+    {
+        //Fog --> Calculate "CanBeSeen"
+        if (teamName == Team.Allies)
+        {
+            //Not in fog (enemy mask)
+            if (!tileManager.CheckForTile(GetPos(), tileManager.fog, tileManager.fogEnemies))
+            {
+                canBeSeen_Enemies = true;
+            }
+            else
+            {
+                canBeSeen_Enemies = false;
+            }
+            canBeSeen_Allies = true;
+        }
+        else
+        {
+            //Not in fog (enemy mask)
+            if (!tileManager.CheckForTile(GetPos(), tileManager.fog, tileManager.fogAllies))
+            {
+                canBeSeen_Allies = true;
+            }
+            else
+            {
+                canBeSeen_Allies = false;
+            }
+            canBeSeen_Enemies = true;
+        }
+        //If cant be seen (allies) --> Invisible
+        if (RoundManager.currentTeam == UnitManager.allies)
+        {
+            if (!canBeSeen_Allies)
+            {
+                TurnInvisible(true);
+            }
+            else
+            {
+                TurnInvisible(false);
+            }
+        }
+        //If cant be seen (enemies) --> Invisible
+        else if (RoundManager.currentTeam == UnitManager.enemies)
+        {
+            if (!canBeSeen_Enemies)
+            {
+                TurnInvisible(true);
+            }
+            else
+            {
+                TurnInvisible(false);
+            }
+        }
     }
 
     public void SetCanAct()
@@ -189,6 +252,8 @@ public class Unit : MonoBehaviour {
     public void WalkPath(Path pPath)
     {
         StartCoroutine(MoveObjectAlongPath(pPath, animWalkSpeed));
+        print(tileManager.baseMap.GetCellCenterWorld(pPath.endpoint));
+        CursorController.Instance.MoveTo(tileManager.baseMap.GetCellCenterWorld(pPath.endpoint), animWalkSpeed);
         turns -= pPath.GetLength();
         walked += pPath.GetLength();
     }
@@ -208,6 +273,7 @@ public class Unit : MonoBehaviour {
         transform.position = target;
         PlayerActions.unitIsMoving = false;
         //Generate new mask after unit is has moved
+        maskGen.GenerateFog(RoundManager.currentTeam);
         maskGen.GenerateMasks(RoundManager.currentUnit);
     }
 
@@ -231,6 +297,7 @@ public class Unit : MonoBehaviour {
         PlayerActions.unitIsMoving = false;
         tileManager.arrowMap.ClearAllTiles();
         //Generate new mask after unit is has moved
+        maskGen.GenerateFog(RoundManager.currentTeam);
         maskGen.GenerateMasks(RoundManager.currentUnit);
         SetCanAct();
     }
@@ -288,6 +355,7 @@ public class Unit : MonoBehaviour {
         {
             Destroy(gameObject);
         }
+        maskGen.GenerateFog(RoundManager.currentTeam);
     }
 
     //Triggered if health equals zero
@@ -333,18 +401,6 @@ public class Unit : MonoBehaviour {
         pTarget.health -= atk;
     }
 
-    //Activate selection
-    public void Highlight()
-    {
-        selection.SetActive(true);    
-    }
-
-    //Deaktivate selection
-    public void ResetHighlight()
-    {
-        selection.SetActive(false);
-    }
-
     //Gets all attackable positions
     public List<Vector3Int> GetAttackPositions()
     {
@@ -361,7 +417,6 @@ public class Unit : MonoBehaviour {
 
     public List<Vector3Int> GetPartnerAP(Vector3Int pos)
     {
-        List<Vector3Int> positions = new List<Vector3Int>();
         foreach (AttackPattern ap in attackPattern)
         {
             foreach (Vector3Int v in ap.positions)
@@ -374,5 +429,24 @@ public class Unit : MonoBehaviour {
             }
         }
         return null;
+    }
+
+    //De-/Activates the visuals
+    public void TurnInvisible(bool state)
+    {
+        if (state == true)
+        {
+            //Invisible On
+            spriteRend.enabled = false;
+            healthBar.SetActive(false);
+            isVisible = false;
+        }
+        else
+        {
+            //Invisible Off
+            spriteRend.enabled = true;
+            healthBar.SetActive(true);
+            isVisible = true;
+        }
     }
 }

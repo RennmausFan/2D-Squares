@@ -36,12 +36,14 @@ public class PlayerActions : MonoBehaviour {
         /**
         if (Input.GetKeyDown(KeyCode.F))
         {
-            MaskGenerator.Instance.GenerateMaskPurple(currentUnit);
+            //MaskGenerator.Instance.GenerateMaskPurple(currentUnit);
+            MaskGenerator.Instance.GenerateFog(UnitManager.allies);
         }
 
         if (Input.GetKeyDown(KeyCode.C))
         {
-            TileManager.Instance.purpleMaskMap.ClearAllTiles();
+            //TileManager.Instance.purpleMaskMap.ClearAllTiles();
+            TileManager.Instance.fogAllies.ClearAllTiles();
         }
         **/
 
@@ -122,6 +124,7 @@ public class PlayerActions : MonoBehaviour {
             {
                 RoundManager.currentUnit = unitAtPos;
                 currentUnit = unitAtPos;
+                CursorController.Instance.MoveToCurrentPlayer();
                 MaskGenerator.Instance.GenerateMasks(currentUnit);
             }
         }
@@ -173,10 +176,13 @@ public class PlayerActions : MonoBehaviour {
         if (tileManager.CheckForUnit(mousePos))
         {
             Unit unit = tileManager.GetUnitAtPosition(mousePos);
-            GameObject go = StatsDisplayer.NewStatsDisplayer(statsDisplayer, unit);
-            unit.healthBar.SetActive(false);
-            lastDisplayer = go;
-            lastUnit = unit;
+            if (unit.isVisible)
+            {
+                GameObject go = StatsDisplayer.NewStatsDisplayer(statsDisplayer, unit);
+                unit.healthBar.SetActive(false);
+                lastDisplayer = go;
+                lastUnit = unit;
+            }
         }
     }
 }
