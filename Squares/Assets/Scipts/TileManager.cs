@@ -30,6 +30,7 @@ public class TileManager : MonoBehaviour {
 
     void Awake()
     {
+        SetAllTileMapsToActive(true);
         Instance = this;
     }
 
@@ -37,7 +38,29 @@ public class TileManager : MonoBehaviour {
     {
         mousePos = GetMouseCellPos(baseMap);
     }
-    
+
+    //Enable or disable a specific tileMap
+    private void SetTileMapActive(Tilemap pTileMap, bool state)
+    {
+        pTileMap.gameObject.SetActive(state);
+        //pTileMap.RefreshAllTiles();
+    }
+
+    //Enable or disable all tilemaps
+    private void SetAllTileMapsToActive(bool state)
+    {
+        SetTileMapActive(baseMap, state);
+        SetTileMapActive(unitsMap, state);
+        SetTileMapActive(masksMap, state);
+        SetTileMapActive(overlayMap, state);
+        SetTileMapActive(arrowMap, state);
+        SetTileMapActive(prepMap, state);
+        SetTileMapActive(pinkMaskMap, state);
+        SetTileMapActive(purpleMaskMap, state);
+        SetTileMapActive(fogAllies, state);
+        SetTileMapActive(fogEnemies, state);
+    }
+
     //Converts the mouse pos in cell space
     public static Vector3Int GetMouseCellPos(Tilemap map)
     {

@@ -59,7 +59,10 @@ public class MaskGenerator: MonoBehaviour{
         tileManager.purpleMaskMap.ClearAllTiles();
         foreach (Unit u in units)
         {
-            GenerateMaskPurple(u);
+            if (u.isVisible)
+            {
+                GenerateMaskPurple(u);
+            }
         }
     }
 

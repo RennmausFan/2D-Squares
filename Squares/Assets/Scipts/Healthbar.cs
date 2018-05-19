@@ -7,7 +7,9 @@ public class Healthbar : MonoBehaviour
 {
     public Unit unit;
 
-    public float gapScale;
+    public float gapSize;
+    public float height;
+    public float borderOffset;
 
     public Color fullColor_Ally;
     public Color fullColor_Enemy;
@@ -26,22 +28,25 @@ public class Healthbar : MonoBehaviour
     private int count;
 
     private float totalWidth;
-    private float gapSize;
+    private float totalGapSize;
     private float tileWidth;
 
     // Use this for initialization
     void Start()
     {
+        //Setup stuff
         count = unit.maxHealth;
+        tiles = new GameObject[count];
+        RectTransform healthtile = healthTile.GetComponent<RectTransform>();
+        RectTransform healthbar = GetComponent<RectTransform>();
 
-        RectTransform rectTransform = healthTile.GetComponent<RectTransform>();
-        totalWidth = rectTransform.rect.width * rectTransform.localScale.x;
-
-        gapSize = (totalWidth * gapScale) * count / (count - 1);
-        tileWidth = (totalWidth / count) - (totalWidth * gapScale);
+        //Setup messurements
+        totalWidth = healthbar.rect.width - 2* borderOffset;
+        totalGapSize = gapSize * (count - 1);
+        tileWidth = (totalWidth / count) - (totalGapSize / count);
         spawnPoint = new Vector3(-totalWidth / 2, 0, 0);
 
-        tiles = new GameObject[count];
+        //Instantiate tiles
         for (int i = 0; i < count; i++)
         {
             //Instantiate tile
@@ -58,7 +63,8 @@ public class Healthbar : MonoBehaviour
 
             //Rescale tile
             Vector3 scale = tileRect.localScale;
-            scale.x = scale.x / count - gapScale;
+            scale.x = tileWidth / tileRect.rect.width;
+            scale.y = height / tileRect.rect.height;
             tileRect.localScale = scale;
 
             //Parent tile and add it to the array
@@ -103,6 +109,9 @@ public class Healthbar : MonoBehaviour
             tiles[p].GetComponent<Image>().color = emptyColor;
         }
         //Update text
-        healthText.GetComponent<Text>().text = unit.health + " / " + unit.maxHealth;
+        if (healthText != null)
+        {
+            healthText.GetComponent<Text>().text = unit.health + " / " + unit.maxHealth;
+        }
     }
 }
